@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "rtlsdrwrapper",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ConnorGibbons/RTLSDRWrapper",
+      "state" : {
+        "branch" : "c2b4bd2",
+        "revision" : "c2b4bd249f5f205cd79afa5224bba6c500e582cc"
+      }
+    }
+  ],
+  "version" : 2
+}
