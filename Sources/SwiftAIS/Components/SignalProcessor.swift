@@ -7,6 +7,7 @@
 import Accelerate
 import Foundation
 import RTLSDRWrapper
+import SignalTools
 
 class SignalProcessor {
     
@@ -14,7 +15,7 @@ class SignalProcessor {
     var samplesPerSymbol: Int {
         sampleRate / 9600
     }
-    var rawFilters: [ComplexFIRFilter] = []
+    var rawFilters: [FIRFilter] = []
     var impulseFilters: [FIRFilter] = []
     var angleFilters: [FIRFilter] = []
     
@@ -22,7 +23,7 @@ class SignalProcessor {
     
     init(sampleRate: Int, debugOutput: Bool = false) throws {
         self.sampleRate = sampleRate
-        let defaultFinerFilter = try ComplexFIRFilter(type: .lowPass, cutoffFrequency: 9600, sampleRate: sampleRate, tapsLength: 31)
+        let defaultFinerFilter = try FIRFilter(type: .lowPass, cutoffFrequency: 9600, sampleRate: sampleRate, tapsLength: 31)
         let defaultImpulseFilter = try FIRFilter(type: .lowPass, cutoffFrequency: 9600, sampleRate: sampleRate, tapsLength: 15)
         self.rawFilters = [defaultFinerFilter]
         self.impulseFilters = [defaultImpulseFilter]
@@ -30,7 +31,7 @@ class SignalProcessor {
         self.debugOutput = debugOutput
     }
     
-    init(sampleRate: Int, rawFilters: [ComplexFIRFilter], impulseFilters: [FIRFilter], angleFilters: [FIRFilter], debugOutput: Bool = false) {
+    init(sampleRate: Int, rawFilters: [FIRFilter], impulseFilters: [FIRFilter], angleFilters: [FIRFilter], debugOutput: Bool = false) {
         self.sampleRate = sampleRate
         self.rawFilters = rawFilters
         self.impulseFilters = impulseFilters
@@ -45,7 +46,7 @@ class SignalProcessor {
     }
     
     func frequencyOverTime(_ signal: [DSPComplex]) -> [Float] {
-        let radianDiffs = vDSPfmDemod(signal)
+        let radianDiffs = demodulateFM(signal)
         var frequencies = radToFrequency(radDiffs: radianDiffs, sampleRate: self.sampleRate)
         for filter in impulseFilters {
             filter.filtfilt(&frequencies)

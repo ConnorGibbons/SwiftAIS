@@ -7,6 +7,7 @@
 
 import Accelerate
 import Foundation
+import SignalTools
 
 // Processes the signal prior to energy detection.
 class SignalPreprocessor {
@@ -49,7 +50,7 @@ class SignalPreprocessor {
     
     func resampleSignal(_ signal: [DSPComplex]) -> [DSPComplex] {
         let antiAliasingFilter = try! FIRFilter(type: .lowPass, cutoffFrequency: Double(outputSampleRate / 2), sampleRate: inputSampleRate, tapsLength: 15)
-        let resampled = downsampleIQ(iqData: signal, decimationFactor: inputSampleRate / outputSampleRate, filter: antiAliasingFilter.taps)
+        let resampled = downsampleComplex(iqData: signal, decimationFactor: inputSampleRate / outputSampleRate, filter: antiAliasingFilter.getTaps())
         return resampled
     }
     

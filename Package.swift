@@ -8,13 +8,15 @@ let package = Package(
         .macOS(.v15)
     ],
     dependencies: [
-        .package(url: "https://github.com/ConnorGibbons/RTLSDRWrapper", revision: "c2b4bd2"),
+        .package(url: "https://github.com/ConnorGibbons/RTLSDRWrapper", branch: "main"),
+        .package(url: "https://github.com/ConnorGibbons/SignalTools", branch: "main")
     ],
     targets: [
         .executableTarget(
             name: "SwiftAIS",
             dependencies: [
-                .product(name: "RTLSDRWrapper", package: "RTLSDRWrapper")
+                .product(name: "RTLSDRWrapper", package: "RTLSDRWrapper"),
+                .product(name: "SignalTools", package: "SignalTools")
             ]
         ),
     ]

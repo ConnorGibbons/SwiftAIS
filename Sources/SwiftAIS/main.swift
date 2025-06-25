@@ -8,6 +8,7 @@
 import Foundation
 import Accelerate
 import RTLSDRWrapper
+import SignalTools
 
 // Args
 var debugOutput: Bool = false
@@ -56,8 +57,14 @@ var invalidSentences: [AISSentence] = []
 
 if #available(macOS 15.0, *) {
     mapCLIArgsToVariables()
-    try! main()
-} else {
+    do {
+        try main()
+    }
+    catch {
+        print(error.localizedDescription)
+    }
+}
+else {
     print("SwiftAIS is only available on macOS 15.0 or newer.")
 }
 

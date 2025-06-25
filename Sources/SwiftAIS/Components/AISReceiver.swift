@@ -6,6 +6,7 @@
 //
 import Accelerate
 import RTLSDRWrapper
+import SignalTools
 
 enum AISErrors: Error {
     case inputSampleRateTooLow

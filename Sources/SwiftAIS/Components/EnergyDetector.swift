@@ -5,6 +5,7 @@
 //  Created by Connor Gibbons  on 6/6/25.
 //
 import Accelerate
+import SignalTools
 
 class EnergyDetector {
     let sampleRate: Int

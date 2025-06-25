@@ -8,6 +8,7 @@
 import Foundation
 import Accelerate
 import RTLSDRWrapper
+import SignalTools
 
 
 func offlineTesting() {
