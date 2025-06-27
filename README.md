@@ -30,3 +30,10 @@ And here's the output when decoded on https://ccgibbons.com/ais
 * *-b* (Int) controls the bandwith of the RTL-SDR. 
 * *-di* (Int) lets you choose the device index of your RTL-SDR, useful if multiple are present.
 
+**Planned Changes / Features**
+* Error Correction: I'll (hopefully soon) be adding a togglable feature that will attempt to correct weak signals by flipping most likely candidates for errored bits.
+* Older macOS Support: Currently this is utilizing features of Apple's Accelerate library that require macOS 15, though there are equivalent functions that will work on older versions. I'd like to support versions going back to High Sierra (and Intel Macs) so that older laptops can be used as receiving stations.
+* Networking: An option to send received packets over TCP connections.
+* Decoder / Visualizer: At some point I will work on a Swift-based decoder & live ship visualizer for the NMEA output.
+
+If you have any issues / suggestions, please reach out! connor@ccgibbons.com 
