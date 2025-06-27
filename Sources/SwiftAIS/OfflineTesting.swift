@@ -10,7 +10,7 @@ import Accelerate
 import RTLSDRWrapper
 import SignalTools
 
-
+/// Don't forget to replace filePath with the path to a .wav file! Samples should be 16 bits each, interleaved IQ.
 func offlineTesting() {
     let t0_x = Date().timeIntervalSinceReferenceDate
     let fullSampleFile = try! readIQFromWAV16Bit(filePath: "/Users/connorgibbons/Documents/Projects/DSPPlayground2/AIS Sample/5.31.25/resampled/thirdSample.wav")

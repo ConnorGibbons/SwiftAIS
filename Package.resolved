@@ -1,5 +1,5 @@
 {
-  "originHash" : "f7dd8103b29e5c89fa5c0ecf63a4d395c397c5da877bcff9d85d340337caa4e7",
+  "originHash" : "9d4edb389be1858d28fcce27a023e2f903c84adfe5f2d589f809d227df26bcab",
   "pins" : [
     {
       "identity" : "rtlsdrwrapper",
@@ -16,7 +16,7 @@
       "location" : "https://github.com/ConnorGibbons/SignalTools",
       "state" : {
         "branch" : "main",
-        "revision" : "96a4e3e57874c5f86a4ac65a26f21adba97a75d1"
+        "revision" : "b9a10561b4c389c95dfd80064f89477b796bc31b"
       }
     }
   ],

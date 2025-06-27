@@ -33,6 +33,7 @@ class SignalPreprocessor {
         self.debugOutput = debugOutput
     }
     
+    // Note that while this returns a new array, it does modify the original!
     func processAISSignal(_ signal: inout [DSPComplex]) -> [DSPComplex] {
         filterSignal(&signal)
         let resampled = resampleSignal(signal)

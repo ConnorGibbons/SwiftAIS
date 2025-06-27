@@ -19,5 +19,12 @@ let package = Package(
                 .product(name: "SignalTools", package: "SignalTools")
             ]
         ),
+        .testTarget(
+            name: "SwiftAISTests",
+            dependencies: ["SwiftAIS"],
+            resources: [
+                .process("TestData")
+            ]
+        )
     ]
 )
