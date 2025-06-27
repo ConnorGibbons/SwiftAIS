@@ -4,7 +4,8 @@ and output them as NMEA 0183 sentences. These sentences can be plugged into AIS 
 Here's an example NMEA sentence captured in Scituate, MA: !AIVDM,1,1,,A,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6C
 
 And here's the output when decoded on https://ccgibbons.com/ais
-<img width="627" alt="image" src="https://github.com/user-attachments/assets/d9456ba9-6bcc-41e7-8e6a-a0adc0aa89f7" />
+<img width="300" alt="image" src="https://github.com/user-attachments/assets/d9456ba9-6bcc-41e7-8e6a-a0adc0aa89f7" />
+
 (This site is a work in progress! Certain less common message types can cause it to crash. If you find one, let me know! connor@ccgibbons.com)
 
 
