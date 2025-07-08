@@ -10,6 +10,26 @@ import SignalTools
 import Accelerate
 @testable import SwiftAIS
 
+let ONE_SECOND_IN_NANOSECONDS: UInt64 = 1_000_000_000
+
+class BoolWrapper: @unchecked Sendable{
+    
+    var value: Bool = false
+    
+    init(value: Bool) {
+        self.value = value
+    }
+    
+    func toggle() {
+        value.toggle()
+    }
+    
+    func getValue() -> Bool {
+        return value
+    }
+    
+}
+
 // Should make the sentence: !AIVDM,1,1,,B,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6F without having to do any error correction.
 @Test func testSentence1() {
     
@@ -32,5 +52,25 @@ import Accelerate
     }
     
     assert(true)
+}
+
+@Test func testEstablishTCPConnection() {
+    let sem = DispatchSemaphore(value: 0)
+    let connectionEstablished = BoolWrapper(value: false)
+    _ = try! TCPConnection(ip: "tcpbin.com", port: 4242, stateUpdateHandler: { newState in
+        print(newState)
+        if(newState == .ready) {
+            connectionEstablished.toggle()
+            sem.signal()
+        }
+    })
+    Task.init {
+        try! await Task.sleep(nanoseconds: ONE_SECOND_IN_NANOSECONDS)
+        if(!connectionEstablished.getValue()) {
+            print("Establishing test connection timed out.")
+            assert(false)
+        }
+    }
+    sem.wait()
 }
 
