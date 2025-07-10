@@ -8,6 +8,7 @@ import Testing
 import Foundation
 import SignalTools
 import Accelerate
+import Network
 @testable import SwiftAIS
 
 let ONE_SECOND_IN_NANOSECONDS: UInt64 = 1_000_000_000
@@ -27,7 +28,6 @@ class BoolWrapper: @unchecked Sendable{
     func getValue() -> Bool {
         return value
     }
-    
 }
 
 // Should make the sentence: !AIVDM,1,1,,B,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6F without having to do any error correction.
@@ -57,13 +57,13 @@ class BoolWrapper: @unchecked Sendable{
 @Test func testEstablishTCPConnection() {
     let sem = DispatchSemaphore(value: 0)
     let connectionEstablished = BoolWrapper(value: false)
-    _ = try! TCPConnection(ip: "tcpbin.com", port: 4242, stateUpdateHandler: { newState in
-        print(newState)
+    let connection = try! TCPConnection(hostname:"tcpbin.com", port: 4242, stateUpdateHandler: { newState in
         if(newState == .ready) {
             connectionEstablished.toggle()
             sem.signal()
         }
     })
+    connection.startConnection()
     Task.init {
         try! await Task.sleep(nanoseconds: ONE_SECOND_IN_NANOSECONDS)
         if(!connectionEstablished.getValue()) {
@@ -74,3 +74,140 @@ class BoolWrapper: @unchecked Sendable{
     sem.wait()
 }
 
+@Test func testTCPConnectionSend() {
+    let sem = DispatchSemaphore(value: 0)
+    let connectionEstablished = BoolWrapper(value: false)
+    
+    let stateUpdateHandler: @Sendable (NWConnection.State) -> Void = { newState in
+        if(newState == .ready) {
+            connectionEstablished.toggle()
+            sem.signal()
+        }
+    }
+    
+    let sendHandler: @Sendable (NWError?) -> Void = { error in
+        if let error = error {
+            print("Error sending data: \(error)")
+            assert(false)
+        }
+        sem.signal()
+    }
+    
+    let connection = try! TCPConnection(hostname: "tcpbin.com", port: 4242, sendHandler: sendHandler, stateUpdateHandler: stateUpdateHandler)
+    Task.init {
+        try! await Task.sleep(nanoseconds: ONE_SECOND_IN_NANOSECONDS)
+        if(!connectionEstablished.getValue()) {
+            print("Establishing test connection timed out.")
+            assert(false)
+        }
+    }
+    connection.startConnection()
+    sem.wait()
+    try! connection.sendData("Meow meow...")
+    try! connection.sendData("Freak Pay!!!!")
+    sem.wait()
+    sem.wait()
+}
+
+@Test func testTCPConnectionReceive() {
+    let sem = DispatchSemaphore(value: 0)
+    
+    let stateUpdateHandler: @Sendable (NWConnection.State) -> Void = { newState in
+        if newState == .ready {
+            print("Connection is ready.")
+            sem.signal()
+        }
+        else {
+            print("State updated to: \(newState)")
+        }
+    }
+    
+    let sendHandler: @Sendable (NWError?) -> Void = { error in
+        assert(error == nil, "Send failed with error: \(error!)")
+        print("Send complete.")
+        sem.signal()
+    }
+    
+    let receiveHandler: @Sendable (Data) -> Void = { data in
+        print("Received data: \(String(data: data, encoding: .utf8) ?? "Non-string data")")
+        sem.signal()
+    }
+    
+    let connection = try! TCPConnection(
+        hostname: "tcpbin.com",
+        port: 4242,
+        sendHandler: sendHandler,
+        receiveHandler: receiveHandler,
+        stateUpdateHandler: stateUpdateHandler
+    )
+    
+    
+    connection.startConnection()
+    let semResult = sem.wait(timeout: .now() + 5)
+    if(semResult == .timedOut) {
+        print("Connection establishment timed out.")
+        assert(false)
+    }
+    
+    try! connection.sendData("Meow meow...\n")
+    let semResult_send1 = sem.wait(timeout: .now() + 2)
+    if(semResult_send1 == .timedOut) {
+        print("Send 1 timed out.")
+        assert(false)
+    }
+    let semResult_receive1 = sem.wait(timeout: .now() + 5)
+    if(semResult_receive1 == .timedOut) {
+        print("Receive 1 timed out.")
+        assert(false)
+    }
+    connection.closeConnection()
+}
+
+@Test func testTCPServerAcceptsConnections() {
+    let sem = DispatchSemaphore(value: 0)
+    
+    let receiveHandler: @Sendable (String, Data) -> Void = {
+        print("\($0): \($1)")
+        sem.signal()
+    }
+    
+    let newConnectionHandler: @Sendable (TCPConnection) -> Void = { newConnection in
+        print("New connection: \(newConnection.connectionName)")
+        sem.signal()
+    }
+    
+    let server = try! TCPServer(port: 62965, actionOnReceive: receiveHandler, actionOnNewConnection: newConnectionHandler)
+    server.startServer()
+    
+    let clientStateHandler: @Sendable (NWConnection.State) -> Void = { newState in
+        print("New TCP Client State: \(newState)")
+        if(newState == .ready) {
+            sem.signal()
+        }
+        if(newState == .cancelled) {
+            sem.signal()
+        }
+    }
+    
+    let client = try! TCPConnection(hostname: "localhost", port: 62965, stateUpdateHandler: clientStateHandler)
+    client.startConnection()
+    let connectionResult = sem.wait(timeout: DispatchTime.now() + 0.5)
+    if(connectionResult == .timedOut) {
+        print("Establishing connection to server timed out.")
+        assert(false)
+    }
+    let serverAcceptConnectionResult = sem.wait(timeout: DispatchTime.now() + 0.5)
+    if(serverAcceptConnectionResult == .timedOut) {
+        print("Server did not accept connection.")
+        assert(false)
+    }
+    
+    assert(server.connectionCount == 1)
+    
+    try! client.sendData("Hello server :)\n")
+    let messageReceivedResult = sem.wait(timeout: DispatchTime.now() + 0.5)
+    if(messageReceivedResult == .timedOut) {
+        print("Server didn't receive message from client.")
+        assert(false)
+    }
+}
