@@ -167,7 +167,7 @@ class BoolWrapper: @unchecked Sendable{
     let sem = DispatchSemaphore(value: 0)
     
     let receiveHandler: @Sendable (String, Data) -> Void = {
-        print("\($0): \($1)")
+        print("\($0): \(String(data: $1, encoding: .utf8) ?? "Unreadable data")")
         sem.signal()
     }
     
@@ -210,4 +210,6 @@ class BoolWrapper: @unchecked Sendable{
         print("Server didn't receive message from client.")
         assert(false)
     }
+    client.closeConnection()
+    server.stopServer()
 }

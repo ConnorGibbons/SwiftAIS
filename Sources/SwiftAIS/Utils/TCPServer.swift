@@ -28,8 +28,15 @@ class TCPServer: @unchecked Sendable {
     
     init(port: UInt16, maxConnections: UInt8 = 10, actionOnReceive: (@Sendable (String, Data) -> Void)? = nil, actionOnStateUpdate: (@Sendable (NWListener.State) -> Void)? = nil, actionOnNewConnection: (@Sendable (TCPConnection) -> Void)? = nil) throws {
         
+        let params = NWParameters.tcp
+        let options = params.defaultProtocolStack.transportProtocol as! NWProtocolTCP.Options
+        options.enableKeepalive = true
+        options.keepaliveIdle = 3
+        options.keepaliveInterval = 1
+        options.keepaliveCount = 5
+        
         guard let port = NWEndpoint.Port(rawValue: port) else { throw TCPServerErrors.portNotAvailable }
-        let listener = try NWListener(using: .tcp, on: port)
+        let listener = try NWListener(using: params, on: port)
         
         self.connections = [:]
         self.listener = listener
@@ -81,7 +88,7 @@ class TCPServer: @unchecked Sendable {
     private func buildNewConnectionHandler(userDefinedHandler: (@Sendable (TCPConnection) -> Void)?) -> (@Sendable (NWConnection) -> Void) {
         return { connection in
             let connectionName = TCPConnection.getConnectionName(endpoint: connection.endpoint)
-            let newConnection = TCPConnection(connection: connection, receiveHandler: self.buildReceiveHandler(name: connectionName), stateUpdateHandler: self.buildConnectionStateUpdateHandler(name: connectionName))
+            let newConnection = TCPConnection(connection: connection, receiveHandler: self.buildReceiveHandler(name: connectionName), stateUpdateHandler: self.buildConnectionStateUpdateHandler(name: connectionName, serverName: self.name))
             newConnection.startConnection()
             self.addConnection(connection: newConnection)
             if let userHandler = userDefinedHandler {
@@ -97,10 +104,15 @@ class TCPServer: @unchecked Sendable {
         }
     }
     
-    private func buildConnectionStateUpdateHandler(name: String) -> @Sendable (NWConnection.State) -> Void {
+    private func buildConnectionStateUpdateHandler(name: String, serverName: String) -> @Sendable (NWConnection.State) -> Void {
         return { state in
-            if(state == .cancelled) {
+            switch state {
+            case .cancelled:
                 self.removeConnection(connectionName: name)
+            case .failed(let err):
+                print("TCPServer (\(serverName)): \(name): connection failed with error \(err)")
+            default:
+                break
             }
         }
     }
