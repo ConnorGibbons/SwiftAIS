@@ -28,7 +28,9 @@ And here's the output when decoded on https://ccgibbons.com/ais
 * *-n* will print valid NMEA packets to the console when received.
 * *-agc* will enable Automatic Gain Control on the RTL-SDR. I have not had the opportunity to test whether this positively impacts the reception process yet.
 * *-b* (Int) controls the bandwith of the RTL-SDR. 
-* *-di* (Int) lets you choose the device index of your RTL-SDR, useful if multiple are present.
+* *-di* (Int / IP:Port) lets you choose the device index of your RTL-SDR, useful if multiple are present. If an IP address / port combo is entered instead, SwiftAIS will try to establish a connection to an rtl_tcp server. Ex. -di 127.0.0.1:1234
+* *-tcp* (Int) lets SwiftAIS act as a TCP server, broadcasting each successfully received sentence as NMEA 0183 packets. Enter a port (1-65535) as an argument. Ex. -tcp 50100
+
 
 **Planned Changes / Features**
 * Multi-Sentence Messages: Some AIS messages are too long to fit within the NMEA 0183 82-character maximum, so they need to be split across multiple sentences. I have not had the opportunity to test with one of these messages yet, but it will almost certainly be output as one long NMEA sentence (technically invalid, though some decoders might handle it regardless) until logic is in place to handle this.

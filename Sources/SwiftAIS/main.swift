@@ -9,6 +9,10 @@ import Foundation
 import Accelerate
 import RTLSDRWrapper
 import SignalTools
+import Network
+
+// Constants
+let MIN_BUFFER_LEN = 16000
 
 // Args
 var debugOutput: Bool = false
@@ -19,6 +23,8 @@ var setupTCPServer: Bool = false
 var tcpServerPort: UInt16 = 50050
 var bandwidth: Int = 72000
 var sdrDeviceIndex: Int = 0
+var sdrHost: String? = nil
+var sdrPort: UInt16? = nil
 var validSentences: [AISSentence] = []
 var invalidSentences: [AISSentence] = []
 
@@ -26,47 +32,75 @@ var outputServer: TCPServer?
 
 
 @MainActor func mapCLIArgsToVariables() {
-    for argument in CommandLine.arguments.dropFirst() {
-        if(argument.hasPrefix("-d")) {
+    let args = CommandLine.arguments
+    let argCount = args.count
+    var currArgIndex = 1
+    while currArgIndex < argCount {
+        let argument = args[currArgIndex]
+        let nextArgument: String? = (currArgIndex + 1) < argCount ? args[currArgIndex + 1] : nil
+        currArgIndex += 1
+        switch true {
+        case argument.hasPrefix("-d "):
             print("Debug output: Enabled.")
             debugOutput = true
-        }
-        else if(argument.hasPrefix("-ot")) {
+            
+        case argument.hasPrefix("-ot"):
             print("Performing offline decoding test...")
             offlineTest = true
-        }
-        else if(argument.hasPrefix("-n")) {
+            
+        case argument.hasPrefix("-n"):
             print("Printing valid NMEA sentences to console: Enabled.")
             outputValidSentencesToConsole = true
-        }
-        else if(argument.hasPrefix("-agc")) {
+            
+        case argument.hasPrefix("-agc"):
             print("Digital AGC: Enabled.")
             useDigitalAGC = true
-        }
-        else if(argument.hasPrefix("-b")) {
-            let inputSplit = argument.split(separator: " ")
-            if(inputSplit.count < 1 || Int(inputSplit[1]) == nil || Int(inputSplit[1])! < 3000 || Int(inputSplit[1])! > 200000) {
-                print("Bandwidth out of range ([3000, 200000]), using default \(bandwidth)")
-                continue
+            
+        case argument.hasPrefix("-b"):
+            currArgIndex += 1
+            if let userBandwidth = Int(nextArgument ?? "failPlaceholder") {
+                if(userBandwidth > 200000 || userBandwidth < 1000) {
+                    print("Bandwidth \(userBandwidth) out of range ([1000, 200000]), using default")
+                    continue
+                }
+                bandwidth = userBandwidth
             }
-            bandwidth = Int(inputSplit[1])!
-        }
-        else if(argument.hasPrefix("-di")) {
-            let inputSplit = argument.split(separator: " ")
-            if(inputSplit.count < 1 || Int(inputSplit[1]) == nil) {
-                print("The provided rtl-sdr device index was invalid")
-                continue
+            
+        case argument.hasPrefix("-di"):
+            currArgIndex += 1
+            if let userDeviceIndex = nextArgument {
+                if(userDeviceIndex.contains(":")) {
+                    let split = userDeviceIndex.split(separator: ":")
+                    if(split.count != 2) {
+                        print("The provided host/port combo for rtl-sdr device was invalid.")
+                        continue
+                    }
+                    sdrHost = String(split[0])
+                    sdrPort = UInt16(split[1])!
+                }
+                else {
+                    let indexAsInt: Int? = Int(userDeviceIndex)
+                    if(indexAsInt == nil) {
+                        print("The provided index for rtl-sdr device was invalid, defaulting to 0")
+                        continue
+                    }
+                    sdrDeviceIndex = indexAsInt!
+                }
             }
-            sdrDeviceIndex = Int(inputSplit[1])!
-        }
-        else if(argument.hasPrefix("-tcp")) {
-            let inputSplit = argument.split(separator: " ")
-            if(inputSplit.count < 1 || Int(inputSplit[1]) == nil) {
-                print("The provided TCP server port was invalid.")
-                continue
+            
+        case argument.hasPrefix("-tcp"):
+            currArgIndex += 1
+            if let serverPort = Int(nextArgument ?? "failPlaceholder") {
+                if(serverPort < 1 || serverPort > 65535) {
+                    print("The provided TCP server port (\(serverPort)) was invalid, must be greater than 1 and less than 65535")
+                    continue
+                }
+                setupTCPServer = true
+                tcpServerPort = UInt16(serverPort)
             }
-            setupTCPServer = true
-            tcpServerPort = UInt16(inputSplit[1])!
+            
+        default:
+            print("Unrecognized argument: \(argument)")
         }
     }
 }
@@ -92,25 +126,47 @@ else {
         exit(0)
     }
     if(setupTCPServer) {
+        print("Starting TCP Server for AIS data...")
         outputServer = try TCPServer(port: UInt16(tcpServerPort), actionOnNewConnection: { newConnection in
             print("New connection to AIS server: \(newConnection.connectionName)")
         })
+        outputServer?.startServer()
     }
     
-    let sdr = try RTLSDR(deviceIndex: sdrDeviceIndex)
+    let sdr: RTLSDR = try {
+        if sdrHost != nil {
+            return try RTLSDR_TCP(host: sdrHost!, port: sdrPort!)
+        }
+        return try RTLSDR_USB(deviceIndex: sdrDeviceIndex)
+    }()
+    defer {
+        sdr.stopAsyncRead()
+    }
+    
     try sdr.setCenterFrequency(AIS_CENTER_FREQUENCY)
-    try sdr.setDigitalAGC(useDigitalAGC)
+    try sdr.setDigitalAGCEnabled(useDigitalAGC)
     try sdr.setSampleRate(DEFAULT_SAMPLE_RATE)
-    try sdr.setTunerBandwidth(bandwidth)
+    try? sdr.setTunerBandwidth(bandwidth) // This won't work on RTLSDR_TCP because it's not implemented yet
     let channelAReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, debugOutput: debugOutput)
     let channelBReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, debugOutput: debugOutput)
     
+    var inputBuffer: [DSPComplex] = []
+    
     sdr.asyncReadSamples(callback: { (inputData) in
-        let t0_handleSamples = Date().timeIntervalSinceReferenceDate
-        inputDataToRecievers(inputData, receiverA: channelAReciever, receiverB: channelBReciever)
-        let t1_handleSamples = Date().timeIntervalSinceReferenceDate
+        guard inputData.count > 16 else {
+            if(debugOutput) {
+                print("inputData too short, skipping")
+            }
+            return
+        }
+        var timer = TimeOperation(operationName: "handleInput")
+        inputBuffer.append(contentsOf: inputData)
+        if(inputBuffer.count >= MIN_BUFFER_LEN) {
+            inputDataToRecievers(inputBuffer, receiverA: channelAReciever, receiverB: channelBReciever)
+            inputBuffer = []
+        }
         if(debugOutput) {
-            print("Processing buffer (\((Double(inputData.count) / Double(DEFAULT_SAMPLE_RATE)))s) took \(t1_handleSamples - t0_handleSamples) seconds")
+            print(timer.stop() + "(\(inputData.count) samples)")
         }
     })
     
@@ -139,15 +195,18 @@ else {
 }
 
 @MainActor func handleSentence(_ sentence: AISSentence) {
-    if(sentence.packetIsValid && outputValidSentencesToConsole) {
+    guard sentence.packetIsValid else { return }
+    
+    if(outputValidSentencesToConsole) {
         print(sentence)
     }
+    
     if let server = outputServer {
         do {
             try server.broadcastMessage(sentence.description)
         }
         catch {
-            print("Failed to broadcast NMEA sentence: \(error)")
+            print("Failed to broadcast message: \(error)")
         }
     }
 }
