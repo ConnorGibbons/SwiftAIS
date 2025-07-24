@@ -104,8 +104,8 @@ extension RingBuffer<DSPComplex> {
         if(readWriteDiff < count) {
             useCount = readWriteDiff
         }
-        var fullBuffer = UnsafeBufferPointer<DSPComplex>(start: self.bufferStartPointer, count: useCount)
-        var fullBufferAsSwiftArray: [DSPComplex] = Array(fullBuffer)
+        let fullBuffer = UnsafeBufferPointer<DSPComplex>(start: self.bufferStartPointer, count: useCount)
+        let fullBufferAsSwiftArray: [DSPComplex] = Array(fullBuffer)
         return fullBufferAsSwiftArray.magnitude()
     }
     

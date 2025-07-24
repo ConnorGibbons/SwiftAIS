@@ -36,7 +36,8 @@ And here's the output when decoded on https://ccgibbons.com/ais
 * Multi-Sentence Messages: Some AIS messages are too long to fit within the NMEA 0183 82-character maximum, so they need to be split across multiple sentences. I have not had the opportunity to test with one of these messages yet, but it will almost certainly be output as one long NMEA sentence (technically invalid, though some decoders might handle it regardless) until logic is in place to handle this.
 * Error Correction: I'll (hopefully soon) be adding a togglable feature that will attempt to correct weak signals by flipping most likely candidates for errored bits.
 * Older macOS Support: Currently this is utilizing features of Apple's Accelerate library that require macOS 15, though there are equivalent functions that will work on older versions. I'd like to support versions going back to High Sierra (and Intel Macs) so that older laptops can be used as receiving stations.
-* Networking: An option to send received packets over TCP connections.
+* ~~Networking: An option to send received packets over TCP connections.~~
+    - Update: This is implemented! Try adding SwiftAIS as a connection in OpenCPN to visualize your captured data!
 * Decoder / Visualizer: At some point I will work on a Swift-based decoder & live ship visualizer for the NMEA output.
 
 If you have any issues / suggestions, please reach out! connor@ccgibbons.com 

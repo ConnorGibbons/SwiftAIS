@@ -93,7 +93,7 @@ class AISReceiver {
         let processor = try SignalProcessor(sampleRate: internalSampleRate, debugOutput: debugOutput)
         let decoder = PacketDecoder(sampleRate: internalSampleRate, debugOutput: debugOutput)
         let synchronizer = PacketSynchronizer(sampleRate: internalSampleRate, decoder: decoder, debugOutput: debugOutput)
-        let validator = PacketValidator(maxFlipAtttempts: 3, debugOutput: debugOutput)
+        let validator = PacketValidator(maxBitFlipCount: 3, debugOutput: debugOutput)
         
         self.inputSampleRate = inputSampleRate
         self.internalSampleRate = internalSampleRate
@@ -165,8 +165,8 @@ class AISReceiver {
             return nil
         }
         
-        var (bits, certaintyToIndexMap) = decoder.decodeBitsFromAngleOverTime(Array(correctedAngles[preciseStartingSample..<correctedAngles.count - 1]), nrziStartHigh: !reversePolarity)
-        let (bitsWithoutStuffing, startBytePosition, endBytePosition, _) = decoder.removeStuffingBitsAndFind0x7e(bits: bits)
+        var (bits, certaintyMap) = decoder.decodeBitsFromAngleOverTime(Array(correctedAngles[preciseStartingSample..<correctedAngles.count - 1]), nrziStartHigh: !reversePolarity)
+        let (bitsWithoutStuffing, startBytePosition, endBytePosition, stuffBitCount, indexesRemoved) = decoder.removeStuffingBitsAndFind0x7e(bits: bits)
         guard startBytePosition != -1 && endBytePosition != -1 else {
             debugPrint("Aborting early: didn't find either start or end flag.")
             return nil
@@ -176,23 +176,45 @@ class AISReceiver {
             return nil
         }
         
-        certaintyToIndexMap = certaintyToIndexMap
-        .map {
-            ($0.0, $0.1 - (startBytePosition + 8)) // Doing this so each index is now relative to the start byte
-        }
-        .filter {
-            $0.1 >= 0 && $0.1 < endBytePosition // Anything outside this range isn't relevant for error correction (it's either preamble or wind-down bits)
+        adjustCertaintyMapIndicies(certaintyMap: &certaintyMap, stuffBitCount: stuffBitCount, indexesRemoved: indexesRemoved, startBytePosition: startBytePosition, endBytePosition: endBytePosition)
+        var bitsWithoutFlags = Array(bitsWithoutStuffing[(startBytePosition + 8)..<endBytePosition])
+        var (crcPassed, calculatedCRC) = validator.verifyCRC(bitsWithoutFlags)
+        
+        if(!crcPassed) {
+            let (correctedBits, newCalculatedCRC, numBitsCorrected, errorCorrectionDidSucceed) = validator.correctErrors(bitsWithoutFlags: bitsWithoutFlags, certainties: certaintyMap)
+            if(errorCorrectionDidSucceed) {
+                debugPrint("Corrected \(numBitsCorrected) errors in sentence.")
+                crcPassed = true
+                calculatedCRC = newCalculatedCRC
+                bitsWithoutFlags = correctedBits
+            }
         }
         
-        let bitsWithoutFlagsOrCRC = Array(bitsWithoutStuffing[(startBytePosition + 8)..<(endBytePosition - 16)])
-        let bitsWithoutFlags = Array(bitsWithoutStuffing[(startBytePosition + 8)..<endBytePosition])
+        let bitsWithoutFlagsOrCRC = Array(bitsWithoutFlags[0..<bitsWithoutFlags.count - 16])
         let (asciiString, paddingBitCount) = decoder.AISBitsToASCIIAndFillBits(bitsWithoutFlagsOrCRC)
-        let (crcPassed, calculatedCRC) = validator.verifyCRC(bitsWithoutFlags)
         
         return AISSentence(fragmentCount: 1, fragmentNumber: 1, sequentialID: nil, channel: self.channel, payloadBitstring: bitsWithoutFlags, payloadASCII: asciiString, fillBits: paddingBitCount, packetChecksum: calculatedCRC, packetIsValid: crcPassed)
     }
     
     // Misc utils
+    
+    private func adjustCertaintyMapIndicies(certaintyMap: inout [(Float, Int)], stuffBitCount: Int, indexesRemoved: Set<Int>, startBytePosition: Int, endBytePosition: Int) {
+        
+        // Removing stuff bits, anything past end byte
+        certaintyMap = certaintyMap.filter { !indexesRemoved.contains($0.1) && $0.1 < (endBytePosition + stuffBitCount + 8) }
+        // Shifting back indicies by number of stuff bits removed prior to that index.
+        certaintyMap = certaintyMap.map { pair in
+            let shiftAmount = indexesRemoved.filter { $0 < pair.1 }.count
+            return (pair.0, pair.1 - shiftAmount)
+        }
+        
+        // Removing flags, and anything before/after them
+        certaintyMap = certaintyMap.filter { $0.1 >= (startBytePosition + 8) && $0.1 < endBytePosition}
+        certaintyMap = certaintyMap.map {
+            ($0.0, $0.1 - (startBytePosition + 8))
+        }
+        
+    }
     
     private func getHighEnergyTimes(_ signal: [DSPComplex]) -> [(Double, Double)] {
         var samplesToProcess: [[DSPComplex]] = []

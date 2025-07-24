@@ -160,3 +160,54 @@ extension [UInt8] {
     }
     
 }
+
+func combinationsBySize(n: Int, k: Int) -> [[[Int]]] {
+    guard k >= 0 && n >= 0 && k <= n else { return [] }
+    guard k > 1 else {
+        return [Array(0..<n).map { [$0] }]
+    }
+    let lowerLevels = combinationsBySize(n: n, k: k - 1)
+    let oneLevelDown = lowerLevels.last!
+    var result: [[Int]] = []
+    for sublist in oneLevelDown {
+        guard sublist.last! + 1 < n else { continue }
+        for i in (sublist.last! + 1)..<n {
+            result.append(sublist + [i])
+        }
+    }
+    return lowerLevels + [result]
+}
+
+func elementsAreUnique(_ array: [[Int]]) -> Bool {
+    var seen: Set<[Int]> = []
+    for sublist in array {
+        if(seen.contains(sublist)) { return false }
+        seen.insert(sublist)
+    }
+    return true
+}
+
+func factorial(_ n: Int) -> Int {
+    guard n >= 0 else { return 0 }
+    if(n == 0 || n == 1) { return 1 }
+    var result = 1
+    var currNum = 1
+    while(currNum <= n) {
+        result = result * currNum
+        currNum += 1
+    }
+    return result
+}
+
+func nrziFlipBits(bits: [UInt8], positions: [Int]) -> [UInt8] {
+    guard positions.count > 0 else {
+        return bits
+    }
+    var currPos = positions.first!
+    var currBits: [UInt8] = bits
+    while currPos < currBits.count {
+        currBits[currPos] ^= 1
+        currPos += 1
+    }
+    return nrziFlipBits(bits: currBits, positions: Array(positions.dropFirst()))
+}

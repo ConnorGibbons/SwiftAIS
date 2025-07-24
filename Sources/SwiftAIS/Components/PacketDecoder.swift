@@ -42,12 +42,13 @@ class PacketDecoder {
         return (bits, certaintyToIndexMap)
     }
     
-    func removeStuffingBitsAndFind0x7e(bits: [UInt8]) -> (bitsWithoutStuffing: [UInt8], startBytePosition: Int, endBytePosition: Int, stuffBitCount: Int) {
+    func removeStuffingBitsAndFind0x7e(bits: [UInt8]) -> (bitsWithoutStuffing: [UInt8], startBytePosition: Int, endBytePosition: Int, stuffBitCount: Int, indexesRemoved: Set<Int>) {
         var consecutiveOnes = 0
         var startBytePosition = -1
         var endBytePosition = -1
         var stuffBitCount = 0
         var bitsWithoutStuffing: [UInt8] = []
+        var indexesRemoved: Set<Int> = []
         bitsWithoutStuffing.reserveCapacity(bits.count)
 
         for i in 0..<bits.count {
@@ -58,6 +59,7 @@ class PacketDecoder {
             } else {
                 if consecutiveOnes == 5 {
                     consecutiveOnes = 0
+                    indexesRemoved.insert(i)
                     stuffBitCount += 1
                     continue
                 }
@@ -68,6 +70,7 @@ class PacketDecoder {
                         endBytePosition = currentPositionInCompleteBitstring - 7
                         // A second flag indicates the end of the frame.
                         // Malformed messages might hit this prematurely.
+                        bitsWithoutStuffing.append(bits[i])
                         break
                     }
                 }
@@ -76,7 +79,7 @@ class PacketDecoder {
             bitsWithoutStuffing.append(bits[i])
         }
         
-        return (bitsWithoutStuffing, startBytePosition, endBytePosition, stuffBitCount)
+        return (bitsWithoutStuffing, startBytePosition, endBytePosition, stuffBitCount, indexesRemoved)
     }
     
     func AISBitsToASCIIAndFillBits(_ bits: [UInt8]) -> (String, Int) {

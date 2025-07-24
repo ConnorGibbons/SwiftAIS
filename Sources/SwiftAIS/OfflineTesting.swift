@@ -21,7 +21,7 @@ func offlineTesting() {
         }
     })
     server.startServer()
-    let fullSampleFile = try! readIQFromWAV16Bit(filePath: "/Users/connorgibbons/Documents/Projects/DSPPlayground2/AIS Sample/5.31.25/resampled/firstSample.wav")
+    let fullSampleFile = try! readIQFromWAV16Bit(filePath: "/Users/connorgibbons/Documents/Projects/DSPPlayground2/AIS Sample/5.31.25/resampled/secondSample.wav")
     let t1_x = Date().timeIntervalSinceReferenceDate
     print("Opened file for reading in \(t1_x - t0_x) seconds")
     var resultBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: fullSampleFile.count)
@@ -35,8 +35,10 @@ func offlineTesting() {
     print("Processed \(sentences.count) sentences in \(t1_y - t0_y) seconds")
     for sentence in sentences {
         print(sentence)
+        print(sentence.packetIsValid)
         try! server.broadcastMessage(sentence.description + "\n")
         print(sentence.payloadBitstring.count)
+        print(sentence.payloadBitstring)
     }
     let t1 = Date().timeIntervalSinceReferenceDate
     print("Finished: \(t1 - t0) seconds")
