@@ -10,6 +10,7 @@ import Accelerate
 import RTLSDRWrapper
 import SignalTools
 import Network
+import Darwin
 
 // Constants
 let MIN_BUFFER_LEN = 16000
@@ -25,11 +26,14 @@ var bandwidth: Int = 72000
 var sdrDeviceIndex: Int = 0
 var sdrHost: String? = nil
 var sdrPort: UInt16? = nil
+var maxBitFlips: Int = 0
+
+// State
+var outputServer: TCPServer?
 var validSentences: [AISSentence] = []
 var invalidSentences: [AISSentence] = []
-
-var outputServer: TCPServer?
-
+var bitErrorsCorrected: Int = 0
+var shouldExit: Bool = false
 
 @MainActor func mapCLIArgsToVariables() {
     let args = CommandLine.arguments
@@ -98,6 +102,16 @@ var outputServer: TCPServer?
                 setupTCPServer = true
                 tcpServerPort = UInt16(serverPort)
             }
+        
+        case argument.hasPrefix("-ec"):
+            currArgIndex += 1
+            if let userSpecifiedBitFlips = Int(nextArgument ?? "failPlaceholder") {
+                if(userSpecifiedBitFlips < 0 || userSpecifiedBitFlips > 15) {
+                    print("The provided number of bitflips (\(userSpecifiedBitFlips)) was invalid, must be between 0 and 15")
+                    continue
+                }
+                maxBitFlips = userSpecifiedBitFlips
+            }
             
         default:
             print("Unrecognized argument: \(argument)")
@@ -120,7 +134,6 @@ else {
 
 @available(macOS 15.0, *)
 @MainActor func main() throws {
-    
     if(offlineTest) {
         offlineTesting()
         exit(0)
@@ -147,8 +160,8 @@ else {
     try sdr.setDigitalAGCEnabled(useDigitalAGC)
     try sdr.setSampleRate(DEFAULT_SAMPLE_RATE)
     try? sdr.setTunerBandwidth(bandwidth) // This won't work on RTLSDR_TCP because it's not implemented yet
-    let channelAReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, debugOutput: debugOutput)
-    let channelBReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, debugOutput: debugOutput)
+    let channelAReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, errorCorrectBits: maxBitFlips, debugOutput: debugOutput)
+    let channelBReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, errorCorrectBits: maxBitFlips, debugOutput: debugOutput)
     
     var inputBuffer: [DSPComplex] = []
     
@@ -170,12 +183,14 @@ else {
         }
     })
     
+    registerSignalHandler()
+    atexit {
+        print("Number of valid sentences received: \(validSentences.count)")
+        print("Number of invalid sentences received: \(invalidSentences.count)")
+        print("Number of bit errors corrected: \(bitErrorsCorrected)")
+    }
     while(true) {
-        guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
-        if input.lowercased() == "q" {
-            sdr.stopAsyncRead()
-            exit(0)
-        }
+        guard let _ = readLine() else { continue }
     }
 }
 
@@ -195,11 +210,21 @@ else {
 }
 
 @MainActor func handleSentence(_ sentence: AISSentence) {
-    guard sentence.packetIsValid else { return }
-    
+    guard sentence.packetIsValid else {
+        invalidSentences.append(sentence)
+        return
+    }
+    validSentences.append(sentence)
     if(outputValidSentencesToConsole) {
         print(sentence)
     }
+    
+    
+//    if(sentence.errorCorrectedBitsCount != 0) {
+//        print("corrected \(sentence.errorCorrectedBitsCount) bits")
+//        print("checksum: \(sentence.checksumAsHex())")
+//        bitErrorsCorrected += sentence.errorCorrectedBitsCount
+//    }
     
     if let server = outputServer {
         do {
@@ -208,5 +233,11 @@ else {
         catch {
             print("Failed to broadcast message: \(error)")
         }
+    }
+}
+
+func registerSignalHandler() {
+    signal(SIGINT) { _ in
+        exit(0)
     }
 }

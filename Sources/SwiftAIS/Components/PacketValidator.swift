@@ -9,7 +9,7 @@ import Foundation
 
 /// PacketValidator will provide CRC verification & eventually small error correction.
 /// maxFlipAttempts determines the max number of bits it will attempt flipping prior to giving up error correction.
-/// Be careful with this parameter as the computational requirement grows fast (2^x)
+/// Be careful with this parameter as the computational requirement grows fast --> max number of combinations checked is: cutoff Choose maxBitFlipCount --> (cutoff!) / (maxBitFlipCount)!(cutoff-maxBitFlipCount)!
 class PacketValidator {
     var maxBitFlipCount: Int
     var cutoff: Int = 20
@@ -38,8 +38,11 @@ class PacketValidator {
         guard !providedCRC.0 else {
             return (bitsWithoutFlags, providedCRC.1, 0, true)
         }
+        guard maxBitFlipCount > 0 else {
+            return ([], 0, 0, false)
+        }
         guard certainties.count > 0 && bitsWithoutFlags.count >= certainties.count && bitsWithoutFlags.count > cutoff else {
-            print("correctErrors called with bad parameters: bitsWithoutFlags:\(bitsWithoutFlags.count) entries, cetainties:\(certainties.count) entries, cutoff:\(cutoff)")
+            debugPrint("correctErrors called with bad parameters: bitsWithoutFlags:\(bitsWithoutFlags.count) entries, cetainties:\(certainties.count) entries, cutoff:\(cutoff)")
             return ([], 0, 0, false)
         }
         for currentBitFlipCount in 1...maxBitFlipCount {
@@ -59,6 +62,7 @@ class PacketValidator {
     private func getBitIndiciesFromCertaintyIndicies(certaintyIndex: [Int], certainties: [(Float, Int)]) -> [Int] {
         var bitIndicies: [Int] = []
         for index in certaintyIndex {
+            guard index < certainties.count else { continue }
             bitIndicies.append(certainties[index].1)
         }
         return bitIndicies

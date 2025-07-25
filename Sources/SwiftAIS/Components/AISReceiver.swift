@@ -26,6 +26,7 @@ struct AISSentence: CustomStringConvertible {
     var payloadBitstring: [UInt8]
     var payloadASCII: String
     var fillBits: Int
+    var errorCorrectedBitsCount: Int
     var packetChecksum: UInt16
     var sentenceChecksum: UInt8 {
         calculatePayloadChecksum()
@@ -75,7 +76,7 @@ class AISReceiver {
     
     // Initializers
     
-    init(inputSampleRate: Int, internalSampleRate: Int = 48000, channel: AISChannel, debugOutput: Bool = false) throws {
+    init(inputSampleRate: Int, internalSampleRate: Int = 48000, channel: AISChannel, errorCorrectBits: Int = 2, debugOutput: Bool = false) throws {
         guard inputSampleRate >= internalSampleRate else {
             throw AISErrors.inputSampleRateTooLow
         }
@@ -93,7 +94,7 @@ class AISReceiver {
         let processor = try SignalProcessor(sampleRate: internalSampleRate, debugOutput: debugOutput)
         let decoder = PacketDecoder(sampleRate: internalSampleRate, debugOutput: debugOutput)
         let synchronizer = PacketSynchronizer(sampleRate: internalSampleRate, decoder: decoder, debugOutput: debugOutput)
-        let validator = PacketValidator(maxBitFlipCount: 3, debugOutput: debugOutput)
+        let validator = PacketValidator(maxBitFlipCount: errorCorrectBits, debugOutput: debugOutput)
         
         self.inputSampleRate = inputSampleRate
         self.internalSampleRate = internalSampleRate
@@ -179,10 +180,11 @@ class AISReceiver {
         adjustCertaintyMapIndicies(certaintyMap: &certaintyMap, stuffBitCount: stuffBitCount, indexesRemoved: indexesRemoved, startBytePosition: startBytePosition, endBytePosition: endBytePosition)
         var bitsWithoutFlags = Array(bitsWithoutStuffing[(startBytePosition + 8)..<endBytePosition])
         var (crcPassed, calculatedCRC) = validator.verifyCRC(bitsWithoutFlags)
-        
+        var errorCorrectedBitsCount = 0
         if(!crcPassed) {
             let (correctedBits, newCalculatedCRC, numBitsCorrected, errorCorrectionDidSucceed) = validator.correctErrors(bitsWithoutFlags: bitsWithoutFlags, certainties: certaintyMap)
             if(errorCorrectionDidSucceed) {
+                errorCorrectedBitsCount = numBitsCorrected
                 debugPrint("Corrected \(numBitsCorrected) errors in sentence.")
                 crcPassed = true
                 calculatedCRC = newCalculatedCRC
@@ -193,13 +195,12 @@ class AISReceiver {
         let bitsWithoutFlagsOrCRC = Array(bitsWithoutFlags[0..<bitsWithoutFlags.count - 16])
         let (asciiString, paddingBitCount) = decoder.AISBitsToASCIIAndFillBits(bitsWithoutFlagsOrCRC)
         
-        return AISSentence(fragmentCount: 1, fragmentNumber: 1, sequentialID: nil, channel: self.channel, payloadBitstring: bitsWithoutFlags, payloadASCII: asciiString, fillBits: paddingBitCount, packetChecksum: calculatedCRC, packetIsValid: crcPassed)
+        return AISSentence(fragmentCount: 1, fragmentNumber: 1, sequentialID: nil, channel: self.channel, payloadBitstring: bitsWithoutFlags, payloadASCII: asciiString, fillBits: paddingBitCount, errorCorrectedBitsCount: errorCorrectedBitsCount, packetChecksum: calculatedCRC, packetIsValid: crcPassed)
     }
     
     // Misc utils
     
     private func adjustCertaintyMapIndicies(certaintyMap: inout [(Float, Int)], stuffBitCount: Int, indexesRemoved: Set<Int>, startBytePosition: Int, endBytePosition: Int) {
-        
         // Removing stuff bits, anything past end byte
         certaintyMap = certaintyMap.filter { !indexesRemoved.contains($0.1) && $0.1 < (endBytePosition + stuffBitCount + 8) }
         // Shifting back indicies by number of stuff bits removed prior to that index.
@@ -208,12 +209,11 @@ class AISReceiver {
             return (pair.0, pair.1 - shiftAmount)
         }
         
-        // Removing flags, and anything before/after them
-        certaintyMap = certaintyMap.filter { $0.1 >= (startBytePosition + 8) && $0.1 < endBytePosition}
+        // Removing flags, CRC, and bits before/after the start/end flags.
+        certaintyMap = certaintyMap.filter { $0.1 >= (startBytePosition + 8) && $0.1 < (endBytePosition - 16) }
         certaintyMap = certaintyMap.map {
             ($0.0, $0.1 - (startBytePosition + 8))
         }
-        
     }
     
     private func getHighEnergyTimes(_ signal: [DSPComplex]) -> [(Double, Double)] {
