@@ -69,8 +69,9 @@ class SignalProcessor {
             $0 - preambleAngle[0] // Just changing it so everything is relative to the starting angle
         }
         let localMax = getSignificantExtremaIndicies(angle: preambleAngle)
-        if(localMax.count < 2) {
-            debugPrint("Failed to find significant local maxima in signal.")
+        guard localMax.count >= 2 else {
+            debugPrint("Failed to find enough significant extrema in signal to estimate frequency error.")
+            return -1
         }
         let firstPeakIndex = localMax[0]
         let sixthPeakIndex = localMax.count > 5 ? localMax[5] : localMax[localMax.count - 1]

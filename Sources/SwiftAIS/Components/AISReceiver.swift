@@ -155,6 +155,11 @@ class AISReceiver {
         }
         
         let frequencyErrorEstimate = processor.estimateFrequencyError(preambleAngle: Array(angles[coarseStartingSample..<(coarseStartingSample+32*samplesPerSymbol)]))
+        guard frequencyErrorEstimate != -1 else {
+            // If this step fails, getting the precise starting sample will fail too. Sensible to abort ahead of that happening.
+            debugPrint("Aborting early: frequency error estimate failed.")
+            return nil
+        }
         let correctedSignal = (abs(frequencyErrorEstimate) > 60) ? processor.correctFrequencyError(signal: samples, error: frequencyErrorEstimate) : filteredIQ
         let correctedAngles = processor.angleOverTime(correctedSignal)
         
