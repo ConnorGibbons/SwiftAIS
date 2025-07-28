@@ -43,3 +43,6 @@ And here's the output when decoded on https://ccgibbons.com/ais
 * Decoder / Visualizer: At some point I will work on a Swift-based decoder & live ship visualizer for the NMEA output.
 
 If you have any issues / suggestions, please reach out! connor@ccgibbons.com 
+
+**Important Note** 
+Testing for this tool is limited, and is not certified by any official bodies. It should not be relied upon as a navigational aid or saftey tool. SwiftAIS is created for hobbyist/educational use.
