@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftAIS",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v10_15),
     ],
     dependencies: [
         .package(url: "https://github.com/ConnorGibbons/RTLSDRWrapper", branch: "main"),

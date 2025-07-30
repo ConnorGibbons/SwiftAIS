@@ -35,7 +35,7 @@ func readIQFromWAV16Bit(fileURL: URL) throws -> [DSPComplex] {
 }
 
 func readIQFromWAV16Bit(filePath: String) throws -> [DSPComplex] {
-    let fileURL = URL(filePath: filePath)
+    let fileURL = URL(fileURLWithPath: filePath)
     let data = try Data(contentsOf: fileURL)
     var iqOutput: [DSPComplex] = []
 

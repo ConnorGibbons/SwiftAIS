@@ -1,5 +1,5 @@
 {
-  "originHash" : "9d4edb389be1858d28fcce27a023e2f903c84adfe5f2d589f809d227df26bcab",
+  "originHash" : "1d75414e22f19ea64957b924d79ba9b768e56b6a742e7374ec72ef3d5e94deb8",
   "pins" : [
     {
       "identity" : "rtlsdrwrapper",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/ConnorGibbons/RTLSDRWrapper",
       "state" : {
         "branch" : "main",
-        "revision" : "736cdc4f8a10f725dd4784e1c3807e07fd0fcdc9"
+        "revision" : "3b06691c9758b038b36ca90edd4d05e43a69c90d"
       }
     },
     {
