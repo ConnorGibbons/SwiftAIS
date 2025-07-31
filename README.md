@@ -1,3 +1,5 @@
+[![Swift](https://github.com/ConnorGibbons/SwiftAIS/actions/workflows/swift.yml/badge.svg)](https://github.com/ConnorGibbons/SwiftAIS/actions/workflows/swift.yml)
+
 **SwiftAIS** lets you turn your Mac into a mobile AIS receiver using cheap, simple hardware! Utilizing an RTL-SDR, this software will demodulate AIS signals from vessels within range, 
 and output them as NMEA 0183 sentences. These sentences can be plugged into AIS decoders to reveal what information a vessel is broadcasting.
 
