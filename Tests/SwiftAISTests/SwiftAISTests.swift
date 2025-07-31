@@ -4,7 +4,7 @@
 //
 //  Created by Connor Gibbons  on 6/27/25.
 //
-import Testing
+import XCTest
 import Foundation
 import SignalTools
 import Accelerate
@@ -31,12 +31,14 @@ class BoolWrapper: @unchecked Sendable{
     }
 }
 
-// Should make the sentence: !AIVDM,1,1,,B,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6F without having to do any error correction.
-@Test func testSentence1() {
+final class SwiftAISTests: XCTestCase {
+
+    // Should make the sentence: !AIVDM,1,1,,B,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6F without having to do any error correction.
+    func testSentence1() {
     
     do {
         guard let sentence1Path = Bundle.module.url(forResource: "sentence1", withExtension: "wav")?.path() else {
-            Issue.record("Failed to find sentence1.wav -- did you delete the TestData folder?")
+            XCTFail("Failed to find sentence1.wav -- did you delete the TestData folder?")
             return
         }
         let sentence1IQData = try readIQFromWAV16Bit(filePath: sentence1Path)
@@ -45,17 +47,17 @@ class BoolWrapper: @unchecked Sendable{
         let testReceiver = try AISReceiver(inputSampleRate: 240000, channel: .B)
         let preprocessed = testReceiver.preprocessor.processAISSignal(&sentence1Shifted)
         let sentence1 = try testReceiver.analyzeSamples(preprocessed, sampleRate: 48000)
-        #expect(sentence1 != nil)
-        #expect(String(describing: sentence1!) == "!AIVDM,1,1,,B,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6F")
+        XCTAssertNotNil(sentence1)
+        XCTAssertEqual(String(describing: sentence1!), "!AIVDM,1,1,,B,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6F")
     }
     catch {
-        Issue.record(error)
+        XCTFail(String(describing: error))
         return
     }
-    
+        
 }
 
-@Test func testEstablishTCPConnection() {
+func testEstablishTCPConnection() {
     let sem = DispatchSemaphore(value: 0)
     let connectionEstablished = BoolWrapper(value: false)
     let connection = try! TCPConnection(hostname:"tcpbin.com", port: 4242, stateUpdateHandler: { newState in
@@ -67,12 +69,12 @@ class BoolWrapper: @unchecked Sendable{
     connection.startConnection()
     Task.init {
         try! await Task.sleep(nanoseconds: ONE_SECOND_IN_NANOSECONDS)
-        #expect(connectionEstablished.getValue())
+        XCTAssertTrue(connectionEstablished.getValue())
     }
     sem.wait()
 }
 
-@Test func testTCPConnectionSend() {
+func testTCPConnectionSend() {
     let sem = DispatchSemaphore(value: 0)
     let connectionEstablished = BoolWrapper(value: false)
     
@@ -84,14 +86,14 @@ class BoolWrapper: @unchecked Sendable{
     }
     
     let sendHandler: @Sendable (NWError?) -> Void = { error in
-        #expect(error == nil)
+        XCTAssertNil(error)
         sem.signal()
     }
     
     let connection = try! TCPConnection(hostname: "tcpbin.com", port: 4242, sendHandler: sendHandler, stateUpdateHandler: stateUpdateHandler)
     Task.init {
         try! await Task.sleep(nanoseconds: ONE_SECOND_IN_NANOSECONDS)
-        #expect(connectionEstablished.getValue())
+        XCTAssertTrue(connectionEstablished.getValue())
     }
     connection.startConnection()
     sem.wait()
@@ -101,7 +103,7 @@ class BoolWrapper: @unchecked Sendable{
     sem.wait()
 }
 
-@Test func testTCPConnectionReceive() {
+func testTCPConnectionReceive() {
     let sem = DispatchSemaphore(value: 0)
     
     let stateUpdateHandler: @Sendable (NWConnection.State) -> Void = { newState in
@@ -115,7 +117,7 @@ class BoolWrapper: @unchecked Sendable{
     }
     
     let sendHandler: @Sendable (NWError?) -> Void = { error in
-        #expect(error == nil, "Send failed with error: \(error!)")
+        XCTAssertNil(error, "Send failed with error: \(error!)")
         print("Send complete.")
         sem.signal()
     }
@@ -136,19 +138,19 @@ class BoolWrapper: @unchecked Sendable{
     
     connection.startConnection()
     let semResult = sem.wait(timeout: .now() + 5)
-    #expect(semResult == .success)
+    XCTAssertEqual(semResult, .success)
     
     try! connection.sendData("Meow meow...\n")
     let semResult_send1 = sem.wait(timeout: .now() + 2)
-    #expect(semResult_send1 == .success)
+    XCTAssertEqual(semResult_send1, .success)
     
     let semResult_receive1 = sem.wait(timeout: .now() + 5)
-    #expect(semResult_receive1 == .success)
+    XCTAssertEqual(semResult_receive1, .success)
     
     connection.closeConnection()
 }
 
-@Test func testTCPServerAcceptsConnections() {
+func testTCPServerAcceptsConnections() {
     let sem = DispatchSemaphore(value: 0)
     
     let receiveHandler: @Sendable (String, Data) -> Void = {
@@ -177,21 +179,21 @@ class BoolWrapper: @unchecked Sendable{
     let client = try! TCPConnection(hostname: "localhost", port: 62965, stateUpdateHandler: clientStateHandler)
     client.startConnection()
     let connectionResult = sem.wait(timeout: DispatchTime.now() + 0.5)
-    #expect(connectionResult == .success)
+    XCTAssertEqual(connectionResult, .success)
     
     let serverAcceptConnectionResult = sem.wait(timeout: DispatchTime.now() + 0.5)
-    #expect(serverAcceptConnectionResult == .success)
-    #expect(server.connectionCount == 1)
+    XCTAssertEqual(serverAcceptConnectionResult, .success)
+    XCTAssertEqual(server.connectionCount, 1)
     
     try! client.sendData("Hello server :)\n")
     let messageReceivedResult = sem.wait(timeout: DispatchTime.now() + 0.5)
-    #expect(messageReceivedResult == .success)
+    XCTAssertEqual(messageReceivedResult, .success)
     
     client.closeConnection()
     server.stopServer()
 }
 
-@Test func combinationsBySizeTest() {
+func testCombinationsBySize() {
     let n = 20
     let k = 10
     let result = combinationsBySize(n: n, k: k)
@@ -201,31 +203,31 @@ class BoolWrapper: @unchecked Sendable{
         let count = result[currLayer].count
         let desiredCount = factorial(n) / (factorial(currKValue)*factorial(n-currKValue))
         print("Layer \(currLayer): \(count)   (target: \(desiredCount))")
-        #expect(count == desiredCount)
-        #expect(elementsAreUnique(result[currLayer]))
+        XCTAssertEqual(count, desiredCount)
+        XCTAssertTrue(elementsAreUnique(result[currLayer]))
         currLayer += 1
     }
 }
 
-@Test func nrziFlipBitsTest() {
+func testNrziFlipBits() {
     let testBits: [UInt8] = [0,0,0,0,1]
     // nrzi bit flip should also flip every subsequent bit
     let flipped = nrziFlipBits(bits: testBits, positions: [0])
-    #expect(flipped == [1,1,1,1,0])
+    XCTAssertEqual(flipped, [1,1,1,1,0])
     // nrzi bit flip is its own inverse
-    #expect(nrziFlipBits(bits: flipped, positions: [0]) == testBits)
+    XCTAssertEqual(nrziFlipBits(bits: flipped, positions: [0]), testBits)
     
     let testBits2: [UInt8] = [0,1,1,1,0]
     // Again, its own inverse so should do nothing if flipping same position twice
     let flipped2 = nrziFlipBits(bits: testBits2, positions: [0,0])
-    #expect(testBits2 == flipped2)
+    XCTAssertEqual(testBits2, flipped2)
     
     let testBits3: [UInt8] = [0,0,0,0,0,0,0]
     let flipped3 = nrziFlipBits(bits: testBits3, positions: [0,3])
-    #expect(flipped3 == [1,1,1,0,0,0,0])
+    XCTAssertEqual(flipped3, [1,1,1,0,0,0,0])
 }
 
-@Test func testErrorCorrection() {
+func testErrorCorrection() {
     let maxBitFlipCount = 5
     let testValidator = PacketValidator(maxBitFlipCount: maxBitFlipCount, debugOutput: true)
     
@@ -240,9 +242,11 @@ class BoolWrapper: @unchecked Sendable{
         let erroredPayload = nrziFlipBits(bits: correctPayloadBits, positions: errorIndicies)
         let errorCorrectionResult = testValidator.correctErrors(bitsWithoutFlags: erroredPayload, certainties: certaintyMap)
         print(timer.stop())
-        #expect(errorCorrectionResult.3)
-        #expect(errorCorrectionResult.2 == i)
-        #expect(errorCorrectionResult.0 == correctPayloadBits)
+        XCTAssertTrue(errorCorrectionResult.3)
+        XCTAssertEqual(errorCorrectionResult.2, i)
+        XCTAssertEqual(errorCorrectionResult.0, correctPayloadBits)
     }
     
+}
+
 }
