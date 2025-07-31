@@ -1,24 +1,25 @@
 {
-  "originHash" : "1d75414e22f19ea64957b924d79ba9b768e56b6a742e7374ec72ef3d5e94deb8",
-  "pins" : [
-    {
-      "identity" : "rtlsdrwrapper",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ConnorGibbons/RTLSDRWrapper",
-      "state" : {
-        "branch" : "main",
-        "revision" : "3b06691c9758b038b36ca90edd4d05e43a69c90d"
+  "object": {
+    "pins": [
+      {
+        "package": "RTLSDRWrapper",
+        "repositoryURL": "https://github.com/ConnorGibbons/RTLSDRWrapper",
+        "state": {
+          "branch": "main",
+          "revision": "340c46dc6682be7a09311aea1cd0572c99bff3a7",
+          "version": null
+        }
+      },
+      {
+        "package": "SignalTools",
+        "repositoryURL": "https://github.com/ConnorGibbons/SignalTools",
+        "state": {
+          "branch": "main",
+          "revision": "2c2c3f7a65e1c113421ea6e193d281481fa02824",
+          "version": null
+        }
       }
-    },
-    {
-      "identity" : "signaltools",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ConnorGibbons/SignalTools",
-      "state" : {
-        "branch" : "main",
-        "revision" : "b9a10561b4c389c95dfd80064f89477b796bc31b"
-      }
-    }
-  ],
-  "version" : 3
+    ]
+  },
+  "version": 1
 }
