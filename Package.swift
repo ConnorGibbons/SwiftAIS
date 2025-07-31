@@ -1,4 +1,6 @@
-// swift-tools-version: 5.10
+// swift-tools-version:5.5
+// 5.5 needed for .package(url:,branch:)
+// Don't put space in front of version number of Swift will get mad
 
 import PackageDescription
 
