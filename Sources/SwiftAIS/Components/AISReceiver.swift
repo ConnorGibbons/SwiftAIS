@@ -172,7 +172,7 @@ class AISReceiver {
         }
         
         var (bits, certaintyMap) = decoder.decodeBitsFromAngleOverTime(Array(correctedAngles[preciseStartingSample..<correctedAngles.count - 1]), nrziStartHigh: !reversePolarity)
-        let (bitsWithoutStuffing, startBytePosition, endBytePosition, stuffBitCount, indexesRemoved) = decoder.removeStuffingBitsAndFind0x7e(bits: bits)
+        let (bitsWithoutStuffing, startBytePosition, endBytePosition, stuffBitCount, indicesRemoved) = decoder.removeStuffingBitsAndFind0x7e(bits: bits)
         guard startBytePosition != -1 && endBytePosition != -1 else {
             debugPrint("Aborting early: didn't find either start or end flag.")
             return nil
@@ -182,7 +182,7 @@ class AISReceiver {
             return nil
         }
         
-        adjustCertaintyMapIndicies(certaintyMap: &certaintyMap, stuffBitCount: stuffBitCount, indexesRemoved: indexesRemoved, startBytePosition: startBytePosition, endBytePosition: endBytePosition)
+        adjustCertaintyMapIndices(certaintyMap: &certaintyMap, stuffBitCount: stuffBitCount, indicesRemoved: indicesRemoved, startBytePosition: startBytePosition, endBytePosition: endBytePosition)
         var bitsWithoutFlags = Array(bitsWithoutStuffing[(startBytePosition + 8)..<endBytePosition])
         var (crcPassed, calculatedCRC) = validator.verifyCRC(bitsWithoutFlags)
         var errorCorrectedBitsCount = 0
@@ -205,12 +205,12 @@ class AISReceiver {
     
     // Misc utils
     
-    private func adjustCertaintyMapIndicies(certaintyMap: inout [(Float, Int)], stuffBitCount: Int, indexesRemoved: Set<Int>, startBytePosition: Int, endBytePosition: Int) {
+    private func adjustCertaintyMapIndices(certaintyMap: inout [(Float, Int)], stuffBitCount: Int, indicesRemoved: Set<Int>, startBytePosition: Int, endBytePosition: Int) {
         // Removing stuff bits, anything past end byte
-        certaintyMap = certaintyMap.filter { !indexesRemoved.contains($0.1) && $0.1 < (endBytePosition + stuffBitCount + 8) }
-        // Shifting back indicies by number of stuff bits removed prior to that index.
+        certaintyMap = certaintyMap.filter { !indicesRemoved.contains($0.1) && $0.1 < (endBytePosition + stuffBitCount + 8) }
+        // Shifting back indices by number of stuff bits removed prior to that index.
         certaintyMap = certaintyMap.map { pair in
-            let shiftAmount = indexesRemoved.filter { $0 < pair.1 }.count
+            let shiftAmount = indicesRemoved.filter { $0 < pair.1 }.count
             return (pair.0, pair.1 - shiftAmount)
         }
         
@@ -230,20 +230,20 @@ class AISReceiver {
             samplesToProcess.append(signal)
         }
         
-        var highEnergyIndicies: [Int] = []
+        var highEnergyIndices: [Int] = []
         var currentChunkNum = 0
         while(currentChunkNum < samplesToProcess.count) {
             var newHighEnergyIndicies = self.energyDetector.addSamples(samplesToProcess[currentChunkNum])
             addBufferOffsetToIndexArray(&newHighEnergyIndicies, currentChunkNum)
-            highEnergyIndicies.append(contentsOf: newHighEnergyIndicies)
+            highEnergyIndices.append(contentsOf: newHighEnergyIndicies)
             currentChunkNum += 1
         }
-        guard highEnergyIndicies.count > 1 else {
+        guard highEnergyIndices.count > 1 else {
             debugPrint("Exited early due to not finding enough high energy indicies")
             return []
         }
         
-        let highEnergyTimes = highEnergyIndicies.map { sampleIndexToTime($0, sampleRate: self.internalSampleRate) }
+        let highEnergyTimes = highEnergyIndices.map { sampleIndexToTime($0, sampleRate: self.internalSampleRate) }
         return collapseTimeArray(highEnergyTimes, threshold: 0.01, addBuffer: -0.005)
     }
     

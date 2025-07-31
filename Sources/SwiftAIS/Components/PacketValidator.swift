@@ -42,13 +42,13 @@ class PacketValidator {
             return ([], 0, 0, false)
         }
         guard certainties.count > 0 && bitsWithoutFlags.count >= certainties.count && bitsWithoutFlags.count > cutoff else {
-            debugPrint("correctErrors called with bad parameters: bitsWithoutFlags:\(bitsWithoutFlags.count) entries, cetainties:\(certainties.count) entries, cutoff:\(cutoff)")
+            debugPrint("correctErrors called with bad parameters: bitsWithoutFlags:\(bitsWithoutFlags.count) entries, certainties:\(certainties.count) entries, cutoff:\(cutoff)")
             return ([], 0, 0, false)
         }
         for currentBitFlipCount in 1...maxBitFlipCount {
             let currentIndiciesToTry = bitFlipIndicies[currentBitFlipCount - 1]
             for indiciesToTry in currentIndiciesToTry {
-                let indexesInBitstring = getBitIndiciesFromCertaintyIndicies(certaintyIndex: indiciesToTry, certainties: certainties)
+                let indexesInBitstring = getBitIndicesFromCertaintyIndices(certaintyIndex: indiciesToTry, certainties: certainties)
                 let flipResult = nrziFlipBits(bits: bitsWithoutFlags, positions: indexesInBitstring)
                 let (verificationResult, newCRC) = self.verifyCRC(flipResult)
                 if verificationResult {
@@ -59,13 +59,13 @@ class PacketValidator {
         return ([], 0, 0, false)
     }
     
-    private func getBitIndiciesFromCertaintyIndicies(certaintyIndex: [Int], certainties: [(Float, Int)]) -> [Int] {
-        var bitIndicies: [Int] = []
+    private func getBitIndicesFromCertaintyIndices(certaintyIndex: [Int], certainties: [(Float, Int)]) -> [Int] {
+        var bitIndices: [Int] = []
         for index in certaintyIndex {
             guard index < certainties.count else { continue }
-            bitIndicies.append(certainties[index].1)
+            bitIndices.append(certainties[index].1)
         }
-        return bitIndicies
+        return bitIndices
     }
     
     private func debugPrint(_ str: String) {

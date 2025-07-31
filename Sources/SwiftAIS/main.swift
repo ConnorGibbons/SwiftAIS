@@ -46,6 +46,28 @@ enum LaunchArgument: String {
     case bandwidth = "-b"
     case deviceIndex = "-di"
     case errorCorrection = "-ec"
+    case help = "-h"
+}
+
+func showHelp() {
+    print("SwiftAIS - AIS Demodulator")
+    print("Usage: SwiftAIS [options]")
+    print("")
+    print("Options:")
+    print("  -h              Show this help message")
+    print("  -d              Enable debug output")
+    print("  -ot             Perform offline decoding test")
+    print("  -n              Print valid NMEA sentences to console")
+    print("  -agc            Enable digital AGC")
+    print("  -tcp <port>     Start TCP server on specified port (1-65535)")
+    print("  -b <bandwidth>  Set tuner bandwidth in Hz (1000-200000)")
+    print("  -di <index>     Set SDR device index or host:port for TCP connection")
+    print("  -ec <bits>      Enable error correction (0-15 bit flips) -- NOTE: Anything above 0 (<=3 is recommended) can cause false positive 'corrections'. Use with caution!")
+    print("")
+    print("Examples:")
+    print("  SwiftAIS -d -n              Run with debug output and console printing")
+    print("  SwiftAIS -tcp 50050         Start TCP server on port 50050")
+    print("  SwiftAIS -di 192.168.1.1:1234  Connect to remote SDR via TCP")
 }
 
 func mapCLIArgsToVariables() -> RuntimeState {
@@ -133,6 +155,10 @@ func mapCLIArgsToVariables() -> RuntimeState {
                 runtimeState.maxBitFlips = userSpecifiedBitFlips
             }
             
+        case .help:
+            showHelp()
+            exit(0)
+            
         default:
             print("Unrecognized argument: \(String(describing: argument))")
         }
@@ -176,8 +202,8 @@ func main(state: RuntimeState) throws {
     try sdr.setDigitalAGCEnabled(state.useDigitalAGC)
     try sdr.setSampleRate(DEFAULT_SAMPLE_RATE)
     try? sdr.setTunerBandwidth(state.bandwidth) // This won't work on RTLSDR_TCP because it's not implemented yet
-    let channelAReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, errorCorrectBits: state.maxBitFlips, debugOutput: state.debugOutput)
-    let channelBReciever = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, errorCorrectBits: state.maxBitFlips, debugOutput: state.debugOutput)
+    let channelAReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, errorCorrectBits: state.maxBitFlips, debugOutput: state.debugOutput)
+    let channelBReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, errorCorrectBits: state.maxBitFlips, debugOutput: state.debugOutput)
     
     var inputBuffer: [DSPComplex] = []
     
@@ -191,7 +217,7 @@ func main(state: RuntimeState) throws {
         var timer = TimeOperation(operationName: "handleInput")
         inputBuffer.append(contentsOf: inputData)
         if(inputBuffer.count >= MIN_BUFFER_LEN) {
-            inputDataToRecievers(inputBuffer, receiverA: channelAReciever, receiverB: channelBReciever, state: state)
+            inputDataToReceivers(inputBuffer, receiverA: channelAReceiver, receiverB: channelBReceiver, state: state)
             inputBuffer = []
         }
         if(state.debugOutput) {
@@ -216,7 +242,7 @@ func main(state: RuntimeState) throws {
     mainThreadBlockingSemaphore.wait()
 }
 
-func inputDataToRecievers(_ inputData: [DSPComplex], receiverA: AISReceiver, receiverB: AISReceiver, state: RuntimeState) {
+func inputDataToReceivers(_ inputData: [DSPComplex], receiverA: AISReceiver, receiverB: AISReceiver, state: RuntimeState) {
     var channelABuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: inputData.count)
     var channelBBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: inputData.count)
     shiftFrequencyToBasebandHighPrecision(rawIQ: inputData, result: &channelABuffer, frequency: Float(CHANNEL_A_OFFSET), sampleRate: DEFAULT_SAMPLE_RATE)

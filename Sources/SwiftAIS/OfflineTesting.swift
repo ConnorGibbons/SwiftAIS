@@ -27,10 +27,10 @@ func offlineTesting() {
     var resultBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: fullSampleFile.count)
     let t0 = Date().timeIntervalSinceReferenceDate
     shiftFrequencyToBasebandHighPrecision(rawIQ: fullSampleFile, result: &resultBuffer, frequency: 33000, sampleRate: 240000)
-    let newReciever = try! AISReceiver(inputSampleRate: 240000, channel: .A, debugOutput: true)
+    let newReceiver = try! AISReceiver(inputSampleRate: 240000, channel: .A, debugOutput: true)
     _ = serverSemaphore.wait(timeout: DispatchTime.now() + 1)
     let t0_y = Date().timeIntervalSinceReferenceDate
-    let sentences = newReciever.processSamples(resultBuffer)
+    let sentences = newReceiver.processSamples(resultBuffer)
     let t1_y = Date().timeIntervalSinceReferenceDate
     print("Processed \(sentences.count) sentences in \(t1_y - t0_y) seconds")
     for sentence in sentences {

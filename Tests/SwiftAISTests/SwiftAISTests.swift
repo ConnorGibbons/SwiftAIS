@@ -43,8 +43,8 @@ class BoolWrapper: @unchecked Sendable{
         var sentence1Shifted: [DSPComplex] = .init(repeating: DSPComplex(real: 0.0, imag: 0.0), count: sentence1IQData.count)
         shiftFrequencyToBasebandHighPrecision(rawIQ: sentence1IQData, result: &sentence1Shifted, frequency: 33000, sampleRate: 240000)
         let testReceiver = try AISReceiver(inputSampleRate: 240000, channel: .B)
-        let prepocessed = testReceiver.preprocessor.processAISSignal(&sentence1Shifted)
-        let sentence1 = try testReceiver.analyzeSamples(prepocessed, sampleRate: 48000)
+        let preprocessed = testReceiver.preprocessor.processAISSignal(&sentence1Shifted)
+        let sentence1 = try testReceiver.analyzeSamples(preprocessed, sampleRate: 48000)
         #expect(sentence1 != nil)
         #expect(String(describing: sentence1!) == "!AIVDM,1,1,,B,E>k`HC0VTah9QTb:Pb2h0ab0P00=N97j<4dDP00000<020,4*6F")
     }

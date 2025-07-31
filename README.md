@@ -46,4 +46,4 @@ And here's the output when decoded on https://ccgibbons.com/ais
 If you have any issues / suggestions, please reach out! connor@ccgibbons.com 
 
 **Important Note**
-Testing for this tool is limited, and is not certified by any official bodies. It should not be relied upon as a navigational aid or saftey tool. SwiftAIS is created for hobbyist/educational use.
+Testing for this tool is limited, and is not certified by any official bodies. It should not be relied upon as a navigational aid or safety tool. SwiftAIS is created for hobbyist/educational use.
