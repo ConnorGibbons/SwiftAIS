@@ -10,8 +10,8 @@ let package = Package(
         .macOS(.v10_15),
     ],
     dependencies: [
-        .package(url: "https://github.com/ConnorGibbons/RTLSDRWrapper", branch: "main"),
-        .package(url: "https://github.com/ConnorGibbons/SignalTools", branch: "main")
+        .package(url: "https://github.com/ConnorGibbons/RTLSDRWrapper", from: "1.0.1"),
+        .package(url: "https://github.com/ConnorGibbons/SignalTools", from: "1.0.1")
     ],
     targets: [
         .executableTarget(

@@ -5,18 +5,18 @@
         "package": "RTLSDRWrapper",
         "repositoryURL": "https://github.com/ConnorGibbons/RTLSDRWrapper",
         "state": {
-          "branch": "main",
-          "revision": "bf8c85733e705de2e384c03a52a3a5481776e8c7",
-          "version": null
+          "branch": null,
+          "revision": "83351c3bacd030da475f95f3225e52eb7a4cf864",
+          "version": "1.0.1"
         }
       },
       {
         "package": "SignalTools",
         "repositoryURL": "https://github.com/ConnorGibbons/SignalTools",
         "state": {
-          "branch": "main",
-          "revision": "2c2c3f7a65e1c113421ea6e193d281481fa02824",
-          "version": null
+          "branch": null,
+          "revision": "e9da1d0d13b28ce83d8a53fa42857ae6152ec17d",
+          "version": "1.0.1"
         }
       }
     ]

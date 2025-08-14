@@ -19,8 +19,6 @@ enum AISChannel: String {
 }
 
 struct AISSentence: CustomStringConvertible {
-    var fragmentCount: Int
-    var fragmentNumber: Int
     var sequentialID: Int?
     var channel: AISChannel
     var payloadBitstring: [UInt8]
@@ -28,31 +26,46 @@ struct AISSentence: CustomStringConvertible {
     var fillBits: Int
     var errorCorrectedBitsCount: Int
     var packetChecksum: UInt16
-    var sentenceChecksum: UInt8 {
-        calculatePayloadChecksum()
-    }
     var packetIsValid: Bool
     
     var description: String {
-        return "!AIVDM,\(self.fragmentCount),\(self.fragmentNumber),\(self.sequentialID?.description ?? ""),\(self.channel),\(self.payloadASCII),\(self.fillBits)*\(self.sentenceChecksumAsHex())"
+        if let seqID = self.sequentialID {
+            let sentenceCount = Int(ceil((Float(payloadASCII.count) / (82.0 - 20.0))))
+            var allSentences: String = ""
+            var currentSentenceNum = 1
+            var startIndex = payloadASCII.startIndex
+            while(currentSentenceNum < sentenceCount) {
+                let currentSegment = payloadASCII[startIndex..<payloadASCII.index(startIndex, offsetBy: 62)]
+                let strippedSentence = "AIVDM,\(sentenceCount),\(currentSentenceNum),\(seqID),\(self.channel),\(currentSegment),0"
+                let checksum = calculateSentenceChecksum(sentence: strippedSentence)
+                allSentences += ("!" + strippedSentence + "*" + checksumAsHex(checksum: checksum) + "\n")
+                currentSentenceNum += 1
+                startIndex = payloadASCII.index(startIndex, offsetBy: 62)
+            }
+            let currentSegment = payloadASCII[startIndex...]
+            let strippedSentence = "AIVDM,\(sentenceCount),\(sentenceCount),\(seqID),\(self.channel),\(currentSegment),\(self.fillBits)" // Different because fillBits should only be in last sentence
+            let checksum = calculateSentenceChecksum(sentence: strippedSentence)
+            allSentences += ("!" + strippedSentence + "*" + checksumAsHex(checksum: checksum))
+            return allSentences
+        }
+        else {
+            let strippedSentence = "AIVDM,1,1,,\(self.channel),\(self.payloadASCII),\(self.fillBits)"
+            let checksum = calculateSentenceChecksum(sentence: strippedSentence)
+            return "!" + strippedSentence + "*" + checksumAsHex(checksum: checksum)
+        }
     }
     
-    var sentenceForChecksumCalculation: String {
-        return "AIVDM,\(self.fragmentCount),\(self.fragmentNumber),\(self.sequentialID?.description ?? ""),\(self.channel),\(self.payloadASCII),\(self.fillBits)"
-    }
-    
-    func checksumAsHex() -> String {
+    func packetChecksumAsHex() -> String {
         return String(format: "%02X", self.packetChecksum)
     }
     
-    func sentenceChecksumAsHex() -> String {
-        return String(format: "%02X", self.sentenceChecksum)
+    func checksumAsHex(checksum: UInt8) -> String {
+        return String(format: "%02X", checksum)
     }
     
-    func calculatePayloadChecksum() -> UInt8 {
-        let strippedSentence = self.sentenceForChecksumCalculation
+    func calculateSentenceChecksum(sentence: String) -> UInt8 {
         var checksum = UInt8(0)
-        for char in strippedSentence {
+        for char in sentence {
             checksum^=UInt8(char.asciiValue!)
         }
         return checksum
@@ -68,15 +81,16 @@ class AISReceiver {
     let synchronizer: PacketSynchronizer
     let decoder: PacketDecoder
     let validator: PacketValidator
+    let seqIDGenerator: SequentialIDGenerator
     let inputSampleRate: Int
     let internalSampleRate: Int
     let channel: AISChannel
     
-    var debugOutput: Bool
+    var debugConfiguration: DebugConfiguration
     
     // Initializers
     
-    init(inputSampleRate: Int, internalSampleRate: Int = 48000, channel: AISChannel, errorCorrectBits: Int = 2, debugOutput: Bool = false) throws {
+    init(inputSampleRate: Int, internalSampleRate: Int = 48000, channel: AISChannel, errorCorrectBits: Int = 2, seqIDGenerator: SequentialIDGenerator, debugConfig: DebugConfiguration = DebugConfiguration(debugOutput: false, saveDirectoryPath: nil)) throws {
         guard inputSampleRate >= internalSampleRate else {
             throw AISErrors.inputSampleRateTooLow
         }
@@ -88,6 +102,9 @@ class AISReceiver {
             print("Internal sample rate must be a multiple of 9600 (AIS Baud)")
             throw AISErrors.sampleRateMismatch
         }
+        
+        let debugOutput = debugConfig.debugOutput
+        
         
         let energyDetector = EnergyDetector(sampleRate: internalSampleRate, bufferDuration: nil, windowSize: nil, debugOutput: debugOutput)
         let preprocessor = SignalPreprocessor(inputSampleRate: inputSampleRate, outputSampleRate: internalSampleRate, debugOutput: debugOutput)
@@ -104,9 +121,10 @@ class AISReceiver {
         self.decoder = decoder
         self.synchronizer = synchronizer
         self.validator = validator
+        self.seqIDGenerator = seqIDGenerator
         self.channel = channel
         
-        self.debugOutput = debugOutput
+        self.debugConfiguration = debugConfig
     }
     
     // Sample Processing
@@ -142,7 +160,6 @@ class AISReceiver {
         guard sampleRate % 9600 == 0 else { throw AISErrors.sampleRateMismatch }
         let samplesPerSymbol = sampleRate / 9600
         var filteredIQ = samples
-        
         self.processor.filterRawSignal(&filteredIQ)
         let frequencyOverTime = self.processor.frequencyOverTime(filteredIQ)
         let angles = self.processor.angleOverTime(filteredIQ)
@@ -200,7 +217,20 @@ class AISReceiver {
         let bitsWithoutFlagsOrCRC = Array(bitsWithoutFlags[0..<bitsWithoutFlags.count - 16])
         let (asciiString, paddingBitCount) = decoder.AISBitsToASCIIAndFillBits(bitsWithoutFlagsOrCRC)
         
-        return AISSentence(fragmentCount: 1, fragmentNumber: 1, sequentialID: nil, channel: self.channel, payloadBitstring: bitsWithoutFlags, payloadASCII: asciiString, fillBits: paddingBitCount, errorCorrectedBitsCount: errorCorrectedBitsCount, packetChecksum: calculatedCRC, packetIsValid: crcPassed)
+        if(debugConfiguration.debugOutput && !crcPassed) {
+            let debugStats = DemodulationDebugStats(samples: filteredIQ, sentence: asciiString, coarseStartingSampleIndex: coarseStartingSample, preciseStartingSampleIndex: preciseStartingSample, isReversePolarity: reversePolarity)
+            if let path = debugConfiguration.saveDirectoryPath {
+                writeDebugStats(directoryPath: path, stats: debugStats)
+            }
+        }
+        
+        // NMEA 82-char maximum, !AIVDM,1,1,,X,,X*XX has 19 chars.
+        var sequentialID: Int? = nil
+        if asciiString.count > (82 - 19)  {
+            sequentialID = seqIDGenerator.getNextSequentialID()
+        }
+        
+        return AISSentence(sequentialID: sequentialID, channel: self.channel, payloadBitstring: bitsWithoutFlags, payloadASCII: asciiString, fillBits: paddingBitCount, errorCorrectedBitsCount: errorCorrectedBitsCount, packetChecksum: calculatedCRC, packetIsValid: crcPassed)
     }
     
     // Misc utils
@@ -257,7 +287,7 @@ class AISReceiver {
     }
     
     private func debugPrint(_ str: String) {
-        if(self.debugOutput) {
+        if(self.debugConfiguration.debugOutput) {
             print(str)
         }
     }

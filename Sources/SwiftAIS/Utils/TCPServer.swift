@@ -13,7 +13,7 @@ enum TCPServerErrors: Error {
     case connectionNonexistent
 }
 
-class TCPServer: @unchecked Sendable {
+class TCPServer {
     let name: String
     let port: UInt16
     let listener: NWListener

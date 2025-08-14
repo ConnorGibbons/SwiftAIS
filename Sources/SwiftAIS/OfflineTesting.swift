@@ -10,9 +10,7 @@ import Accelerate
 import RTLSDRWrapper
 import SignalTools
 
-/// Don't forget to replace filePath with the path to a .wav file! Samples should be 16 bits each, interleaved IQ.
-func offlineTesting() {
-    let t0_x = Date().timeIntervalSinceReferenceDate
+func offlineTesting(samples: [DSPComplex]) {
     let serverSemaphore = DispatchSemaphore(value: 0)
     let server = try! TCPServer(port: 50100, actionOnStateUpdate: { newState in
         if newState == .ready {
@@ -21,13 +19,11 @@ func offlineTesting() {
         }
     })
     server.startServer()
-    let fullSampleFile = try! readIQFromWAV16Bit(filePath: "/Users/connorgibbons/Documents/Projects/DSPPlayground2/AIS Sample/5.31.25/resampled/secondSample.wav")
-    let t1_x = Date().timeIntervalSinceReferenceDate
-    print("Opened file for reading in \(t1_x - t0_x) seconds")
-    var resultBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: fullSampleFile.count)
+    var resultBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: samples.count)
     let t0 = Date().timeIntervalSinceReferenceDate
-    shiftFrequencyToBasebandHighPrecision(rawIQ: fullSampleFile, result: &resultBuffer, frequency: 33000, sampleRate: 240000)
-    let newReceiver = try! AISReceiver(inputSampleRate: 240000, channel: .A, debugOutput: true)
+    shiftFrequencyToBasebandHighPrecision(rawIQ: samples, result: &resultBuffer, frequency: 33000, sampleRate: 240000)
+    let seqIDGenerator = SequentialIDGenerator()
+    let newReceiver = try! AISReceiver(inputSampleRate: 240000, channel: .A, seqIDGenerator: seqIDGenerator, debugConfig: DebugConfiguration(debugOutput: true, saveDirectoryPath: nil))
     _ = serverSemaphore.wait(timeout: DispatchTime.now() + 1)
     let t0_y = Date().timeIntervalSinceReferenceDate
     let sentences = newReceiver.processSamples(resultBuffer)
