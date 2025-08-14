@@ -17,7 +17,7 @@ And here's the output when decoded on https://ccgibbons.com/ais:
 
 ## Requirements
 
-- An ARM-based Mac running macOS 15 or newer *(subject to change - hoping to add support for Intel & older macOS versions soon!)*
+- An ARM-based Mac running macOS 15 or newer *(Builds for macOS 13 via GitHub Actions -- I do not have a device to run a real world test on older versions.)*
 - [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/)
 - RTL-SDR & an antenna (antennas designed for the VHF range are ideal, but not strictly required)
 - Be located near marine activity (unfortunately, reception will be too weak if not in a coastal area)
@@ -38,14 +38,16 @@ And here's the output when decoded on https://ccgibbons.com/ais:
 
 | Argument | Description |
 |----------|-------------|
-| `-d` | Enables extra output for debugging (demodulation time, errors, etc.) |
-| `-ot` | Runs the demodulator on a prerecorded .wav file (must be in 16-bit interleaved IQ format). Modify file path & behavior in `OfflineTesting.swift` |
+| `-h` | Shows help message containing argument info. |
+| `-d [Directory Path]` | Enables extra output for debugging (demodulation time, errors, etc.) Saves a .aisDebug file to specified directory for each failed demod attempt.|
+| `-ot [File Path, Int, Int]` | Runs the demodulator on a prerecorded .wav file (must be in 16-bit interleaved IQ format). First argument is file path, then center frequency of recording, then sample rate. |
 | `-n` | Prints valid NMEA packets to the console when received |
 | `-agc` | Enables Automatic Gain Control on the RTL-SDR |
 | `-b [Int]` | Controls the bandwidth of the RTL-SDR |
 | `-di [Int/IP:Port]` | Choose device index of your RTL-SDR (useful if multiple are present). If IP:Port is entered, SwiftAIS will connect to an rtl_tcp server. Example: `-di 127.0.0.1:1234` |
 | `-tcp [Int]` | Makes SwiftAIS act as a TCP server, broadcasting NMEA 0183 packets. Enter port (1-65535). Example: `-tcp 50100` |
-| `-ec [Int]` | Enables error correction up to a defined number of bits. Max allowed is 15. Keep <3 bits for best results to avoid false corrections |
+| `-ec [Int]` | Enables error correction up to a defined number of bits. Max allowed is 3. This is experimental, it can cause false corrections. |
+| `-s [File Path]` | Saves NMEA 0183 output text to a specified file. |
 
 ## Planned Features
 
@@ -53,11 +55,11 @@ And here's the output when decoded on https://ccgibbons.com/ais:
 Some AIS messages are too long for the NMEA 0183 82-character maximum and need to be split across multiple sentences. Currently these will be output as one long sentence (technically invalid) until proper logic is implemented.
 
 ### ~~Error Correction~~
-- **Update:** This is implemented but untested. Real-world testing coming soon.
+- **Update:** This is implemented but with caveats. It should only be considered for experimental use. While it usually correct packets properly, it is also possible to find a combination of bit flips for which the bits are wrong, but CRC still passes. This typically manifests as a ship appearing unrealistically far away on a plotter.
 
 ### Older macOS Support
 Currently uses macOS 15-specific Accelerate library features. Working on supporting older versions back to High Sierra and Intel Macs.
-- **Update:** SwiftAIS **should** run on macOS 10.15 (Catalina) on Intel Macs.
+- **Update:** SwiftAIS builds on macOS 13 via GitHub Actions. In theory should build on macOS 10.15, but I currently do not have a means of testing this. If you are able to test this, or encounter problems, please email me using the contact below.
 
 ### ~~Networking~~
 - **Update:** TCP networking is implemented! Try adding SwiftAIS as a connection in OpenCPN to visualize your captured data.

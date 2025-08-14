@@ -19,10 +19,10 @@ class RuntimeState {
     // Args
     var debugConfig: DebugConfiguration = DebugConfiguration(debugOutput: false, saveDirectoryPath: nil)
     var offlineSamples: [DSPComplex]? = nil
+    var offlineCenterFrequency: Int? = nil
+    var offlineSampleRate: Int? = nil
     var outputValidSentencesToConsole: Bool = false
     var useDigitalAGC: Bool = false
-    var setupTCPServer: Bool = false
-    var tcpServerPort: UInt16 = 50050
     var bandwidth: Int = 72000
     var sdrDeviceIndex: Int = 0
     var sdrHost: String? = nil
@@ -64,7 +64,7 @@ func showHelp() {
     print("Options:")
     print("  -h              Show this help message")
     print("  -d <file path>  Enable debug output, saves .aisDebug files to specified directory. Each file contains information about a failed demodulation attempt.")
-    print("  -ot <file path> Perform offline decoding test using specified file as input, must be 16-bit WAV where IQ samples are interleaved")
+    print("  -ot <file path, center frequency, sample rate> Perform offline decoding test using specified file as input, must be 16-bit WAV where IQ samples are interleaved")
     print("  -n              Print valid NMEA sentences to console")
     print("  -agc            Enable digital AGC")
     print("  -tcp <port>     Start TCP server on specified port (1-65535)")
@@ -112,6 +112,22 @@ func mapCLIArgsToVariables() -> RuntimeState {
             }
             do {
                 let samples = try readIQFromWAV16Bit(filePath: nextArgument ?? "failPlaceholder")
+                guard let centerFrequency = Int(args[currArgIndex]) else {
+                    print("Center frequency provided for offline test (\(args[currArgIndex])) was not parsable to an integer.")
+                    exit(64)
+                }
+                currArgIndex = currArgIndex + 1
+                guard currArgIndex < argCount else {
+                    print("Offline Decoding Test did not recieve enough arguments (file path, center frequency <Int>, sample rate <Int> required.")
+                    exit(64)
+                }
+                guard let sampleRate = Int(args[currArgIndex]) else {
+                    print("Sample rate provided for offline test (\(args[currArgIndex])) was not parsable to an integer.")
+                    exit(64)
+                }
+                currArgIndex = currArgIndex + 1
+                runtimeState.offlineSampleRate = sampleRate
+                runtimeState.offlineCenterFrequency = centerFrequency
                 runtimeState.offlineSamples = samples
             }
             catch {
@@ -174,8 +190,16 @@ func mapCLIArgsToVariables() -> RuntimeState {
                     print("The provided TCP server port (\(serverPort)) was invalid, must be greater than 1 and less than 65535")
                     exit(64)
                 }
-                runtimeState.setupTCPServer = true
-                runtimeState.tcpServerPort = UInt16(serverPort)
+                let port = UInt16(serverPort)
+                do {
+                    runtimeState.outputServer = try TCPServer(port: port, actionOnNewConnection: { newConnection in
+                        print("New connection to AIS server: \(newConnection.connectionName)")
+                    })
+                }
+                catch {
+                    print("Failed to setup TCP server: \(error)")
+                    exit(1)
+                }
             }
             else {
                 print("-tcp must be accompanied with an integer (1-65535), specifying the port to listen on.")
@@ -244,15 +268,13 @@ catch {
 }
 
 func main(state: RuntimeState) throws {
-    if let offlineSamples = state.offlineSamples {
-        offlineTesting(samples: offlineSamples)
+    if state.offlineSamples != nil {
+        try offlineTesting(state: state)
         exit(0)
     }
-    if(state.setupTCPServer) {
+
+    if(state.outputServer != nil) {
         print("Starting TCP Server for AIS data...")
-        state.outputServer = try TCPServer(port: UInt16(state.tcpServerPort), actionOnNewConnection: { newConnection in
-            print("New connection to AIS server: \(newConnection.connectionName)")
-        })
         state.outputServer?.startServer()
     }
     

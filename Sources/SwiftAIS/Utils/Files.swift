@@ -24,11 +24,11 @@ struct DemodulationDebugStats: Encodable {
     }
 }
 
-// Saves debug stats from AISReceiver as (current time).aisDebug
-// This is called for each unsuccessful decoding attempt, per-sentence. Can be used to determine what went wrong for a particular demodulation attempt.
-// Format is:
-// sentence, coarseStartingSampleIndex, preciseStartingSampleIndex, isReversePolarity contained in a JSON object
-// Complex samples as comma separated values, each row in the format "I,Q\n". 
+/// Saves debug stats from AISReceiver as (current time).aisDebug
+/// This is called for each unsuccessful decoding attempt, per-sentence. Can be used to determine what went wrong for a particular demodulation attempt.
+/// Format:
+/// sentence, coarseStartingSampleIndex, preciseStartingSampleIndex, isReversePolarity contained in a JSON object
+/// Complex samples as comma separated values, each row in the format "I,Q\n".
 func writeDebugStats(directoryPath: String, stats: DemodulationDebugStats) {
     guard directoryExists(directoryPath) else {
         print("Directory does not exist: \(directoryPath), can't write debug stats")

@@ -10,32 +10,56 @@ import Accelerate
 import RTLSDRWrapper
 import SignalTools
 
-func offlineTesting(samples: [DSPComplex]) {
-    let serverSemaphore = DispatchSemaphore(value: 0)
-    let server = try! TCPServer(port: 50100, actionOnStateUpdate: { newState in
-        if newState == .ready {
-            print("Test TCP Server started.")
-            serverSemaphore.signal()
-        }
-    })
-    server.startServer()
-    var resultBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: samples.count)
-    let t0 = Date().timeIntervalSinceReferenceDate
-    shiftFrequencyToBasebandHighPrecision(rawIQ: samples, result: &resultBuffer, frequency: 33000, sampleRate: 240000)
-    let seqIDGenerator = SequentialIDGenerator()
-    let newReceiver = try! AISReceiver(inputSampleRate: 240000, channel: .A, seqIDGenerator: seqIDGenerator, debugConfig: DebugConfiguration(debugOutput: true, saveDirectoryPath: nil))
-    _ = serverSemaphore.wait(timeout: DispatchTime.now() + 1)
-    let t0_y = Date().timeIntervalSinceReferenceDate
-    let sentences = newReceiver.processSamples(resultBuffer)
-    let t1_y = Date().timeIntervalSinceReferenceDate
-    print("Processed \(sentences.count) sentences in \(t1_y - t0_y) seconds")
-    for sentence in sentences {
-        print(sentence)
-        print(sentence.packetIsValid)
-        try! server.broadcastMessage(sentence.description + "\n")
-        print(sentence.payloadBitstring.count)
-        print(sentence.payloadBitstring)
+func offlineTesting(state: RuntimeState) throws {
+    guard let centerFrequency = state.offlineCenterFrequency, let sampleRate = state.offlineSampleRate, let samples = state.offlineSamples else {
+        print("Missing data required for offline decoding.")
+        exit(1)
     }
-    let t1 = Date().timeIntervalSinceReferenceDate
-    print("Finished: \(t1 - t0) seconds")
+    
+    var timer = TimeOperation(operationName: "Preparing data")
+    var channelABuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: samples.count)
+    var channelBBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: samples.count)
+    shiftFrequencyToBasebandHighPrecision(rawIQ: samples, result: &channelABuffer, frequency: Float(AIS_CHANNEL_A - centerFrequency), sampleRate: sampleRate)
+    shiftFrequencyToBasebandHighPrecision(rawIQ: samples, result: &channelBBuffer, frequency: Float(AIS_CHANNEL_B - centerFrequency), sampleRate: sampleRate)
+    print(timer.stop())
+    
+    
+    let channelAReceiver = try AISReceiver(inputSampleRate: sampleRate, channel: .A, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
+    let channelBReceiver = try AISReceiver(inputSampleRate: sampleRate, channel: .B, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
+    var sentences: [AISSentence] = []
+    sentences.append(contentsOf: channelAReceiver.processSamples(channelABuffer))
+    sentences.append(contentsOf: channelBReceiver.processSamples(channelBBuffer))
+    
+    guard sentences.count > 0 else {
+        print("Found no AIS sentences. Exiting...")
+        return
+    }
+    
+    for sentence in sentences {
+        guard sentence.packetIsValid else { continue }
+        state.validSentences.append(sentence)
+        
+        if(state.outputValidSentencesToConsole) {
+            print(sentence.description)
+        }
+        
+        if let saveFileHandle = state.outputFile {
+            writeSentenceToFile(sentence, file: saveFileHandle)
+        }
+        
+        if let server = state.outputServer {
+            let splitSentences = sentence.description.split(separator: "\n") // In case it's a multi sentence message.
+            do {
+                for sentence in splitSentences {
+                    try server.broadcastMessage(String(sentence))
+                }
+            }
+            catch {
+                print("Unable to broadcast message: \(error)")
+            }
+        }
+        
+    }
+    
+    
 }

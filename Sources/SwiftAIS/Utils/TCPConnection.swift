@@ -14,10 +14,9 @@ enum TCPConnectionErrors: Error {
     case unsupportedData
 }
 
-struct TCPConnection {
+final class TCPConnection {
     private let connection: NWConnection
     private let endpoint: NWEndpoint
-    private let parameters: NWParameters
     private let dedicatedQueue: DispatchQueue
     
     let connectionName: String
@@ -43,7 +42,7 @@ struct TCPConnection {
         }
         let endpoint = NWEndpoint.hostPort(host: host, port: port!)
         
-        self.parameters = NWParameters.tcp
+        let parameters = NWParameters.tcp
         self.endpoint = endpoint
         self.connection = NWConnection(to: endpoint, using: parameters)
         self.dedicatedQueue = DispatchQueue(label: "tcp.\(hostname).\(port!)", qos: .userInitiated)
@@ -71,7 +70,6 @@ struct TCPConnection {
     
     init(connection: NWConnection, sendHandler: (@Sendable (NWError?) -> Void)? = nil, receiveHandler: (@Sendable (Data) -> Void)? = nil, stateUpdateHandler: (@Sendable (NWConnection.State) -> Void)? = nil) {
         self.connection = connection
-        self.parameters = connection.parameters
         self.endpoint = connection.endpoint
         self.dedicatedQueue = DispatchQueue(label: "tcp.\(connection.endpoint)")
         self.connectionName = TCPConnection.getConnectionName(endpoint: connection.endpoint)
@@ -102,17 +100,18 @@ struct TCPConnection {
     }
     
     private func setupReceive() {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: .max, completion: { content,contentContext,isComplete,error in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: .max, completion: { [weak self] content,contentContext,isComplete,error in
+            guard let self = self else { return }
             self.receiveHandler(content)
             guard error == nil else {
-                print("TCPConnection (\(connectionName)) Stopped receive loop due to error: \(String(describing: error))")
+                print("TCPConnection (\(self.connectionName)) Stopped receive loop due to error: \(String(describing: error))")
                 return
             }
             guard isComplete == false else {
-                print("TCPConnection (\(connectionName)) Stopped receive loop: final message received.")
+                print("TCPConnection (\(self.connectionName)) Stopped receive loop: final message received.")
                 return
             }
-            setupReceive()
+            self.setupReceive()
         })
     }
     
