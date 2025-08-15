@@ -25,7 +25,9 @@ class RingBuffer<T> {
     
     init(defaultVal: T, size: Int) {
         internalBuffer = UnsafeMutableBufferPointer<T>.allocate(capacity: size)
-        internalBuffer.initialize(repeating: defaultVal)
+        if size > 0 {
+            internalBuffer.initialize(repeating: defaultVal)
+        }
         bufferStartPointer = internalBuffer.baseAddress!
     }
     
@@ -92,6 +94,10 @@ class RingBuffer<T> {
         }
     }
     
+    deinit {
+        self.internalBuffer.deallocate()
+    }
+    
 }
 
 extension RingBuffer<DSPComplex> {
@@ -99,14 +105,23 @@ extension RingBuffer<DSPComplex> {
     /// Disclaimer: This function is **only** for use with this program (SwiftAIS) because of the unique use case where the buffer is never consumed from except for calculating the magnitude.
     /// As a result, the read head is never moved from it's starting position, and we can use readWriteDiff to determine if the whole buffer is valid or if we should just use the first portion of it.
     /// Going to need to rewrite this with vDSP as this version will probably be really slow!
+    func magnitude_OLD() -> [Float] {
+        var useCount = self.count
+        if(readWriteDiff < count) {
+            useCount = readWriteDiff
+        }
+        let validBuffer = UnsafeBufferPointer<DSPComplex>(start: self.bufferStartPointer, count: useCount)
+        let validBufferAsSwiftArray: [DSPComplex] = Array(validBuffer)
+        return validBufferAsSwiftArray.magnitude()
+    }
+    
     func magnitude() -> [Float] {
         var useCount = self.count
         if(readWriteDiff < count) {
             useCount = readWriteDiff
         }
-        let fullBuffer = UnsafeBufferPointer<DSPComplex>(start: self.bufferStartPointer, count: useCount)
-        let fullBufferAsSwiftArray: [DSPComplex] = Array(fullBuffer)
-        return fullBufferAsSwiftArray.magnitude()
+        let validBuffer: UnsafeBufferPointer<DSPComplex> = .init(start: self.bufferStartPointer, count: useCount)
+        return DSPComplexBufferMagnitude(validBuffer)
     }
     
 }

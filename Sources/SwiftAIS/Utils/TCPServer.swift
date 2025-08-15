@@ -180,4 +180,8 @@ final class TCPServer {
         self.dedicatedQueue.async(execute: execute)
     }
     
+    deinit {
+        self.stopServer()
+    }
+    
 }

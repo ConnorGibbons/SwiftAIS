@@ -198,4 +198,8 @@ final class TCPConnection {
         return name
     }
     
+    deinit {
+        self.closeConnection()
+    }
+    
 }

@@ -211,3 +211,17 @@ func nrziFlipBits(bits: [UInt8], positions: [Int]) -> [UInt8] {
     }
     return nrziFlipBits(bits: currBits, positions: Array(positions.dropFirst()))
 }
+
+func DSPComplexBufferMagnitude(_ buffer: UnsafeBufferPointer<DSPComplex>) -> [Float] {
+    let realPointer: UnsafeMutablePointer<Float> = .allocate(capacity: buffer.count)
+    let imagPointer: UnsafeMutablePointer<Float> = .allocate(capacity: buffer.count)
+    var result: [Float] = .init(repeating: 0.0, count: buffer.count)
+    defer {
+        realPointer.deallocate()
+        imagPointer.deallocate()
+    }
+    var splitComplexBuffer: DSPSplitComplex = .init(realp: realPointer, imagp: imagPointer)
+    vDSP_ctoz(buffer.baseAddress!, vDSP_Stride(2), &splitComplexBuffer, vDSP_Stride(1), vDSP_Length(buffer.count))
+    vDSP_zvabs(&splitComplexBuffer, vDSP_Stride(1), &result, vDSP_Stride(1), vDSP_Length(buffer.count))
+    return result
+}

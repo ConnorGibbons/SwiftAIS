@@ -265,6 +265,31 @@ final class SwiftAISTests: XCTestCase {
         XCTAssertTrue(sentencesSplit[1].count <= 82)
     }
     
+    func testComplexRingBufferMagnitudeSpeed() {
+        let BUFFER_SIZE = 1_000_000
+        let ringBuff_0 = RingBuffer<DSPComplex>.init(defaultVal: DSPComplex(real: 0.0, imag: 0.0), size: BUFFER_SIZE)
+        let ringBuff_1 = RingBuffer<DSPComplex>.init(defaultVal: DSPComplex(real: 0.0, imag: 0.0), size: BUFFER_SIZE)
+        for _ in 0..<BUFFER_SIZE {
+            ringBuff_0.write(DSPComplex(real: Float.random(in: -1..<1), imag: Float.random(in: -1..<1)))
+            ringBuff_1.write(DSPComplex(real: Float.random(in: -1..<1), imag: Float.random(in: -1..<1)))
+        }
+        
+        var startTime_old = TimeOperation(operationName: "Old Magnitude Calc (\(BUFFER_SIZE))")
+        let oldMag = ringBuff_0.magnitude_OLD()
+        print(startTime_old.stop())
+        
+        var startTime_new = TimeOperation(operationName: "New Magnitude Calc (\(BUFFER_SIZE))")
+        _ = ringBuff_1.magnitude()
+        print(startTime_new.stop())
+        
+        let magForComparison = ringBuff_0.magnitude()
+
+        var i = 0
+        while(i < magForComparison.count) {
+            XCTAssert(abs(oldMag[i] - magForComparison[i]) < 0.0001)
+            i += 1
+        }
+    }
     
     
 }
