@@ -11,14 +11,16 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ConnorGibbons/RTLSDRWrapper", from: "1.0.1"),
-        .package(url: "https://github.com/ConnorGibbons/SignalTools", from: "1.0.1")
+        .package(url: "https://github.com/ConnorGibbons/SignalTools", from: "1.0.1"),
+        .package(url: "https://github.com/ConnorGibbons/TCPUtils", from: "1.0.2"),
     ],
     targets: [
         .executableTarget(
             name: "SwiftAIS",
             dependencies: [
                 .product(name: "RTLSDRWrapper", package: "RTLSDRWrapper"),
-                .product(name: "SignalTools", package: "SignalTools")
+                .product(name: "SignalTools", package: "SignalTools"),
+                .product(name: "TCPUtils", package: "TCPUtils"),
             ]
         ),
         .testTarget(

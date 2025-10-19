@@ -15,6 +15,7 @@ let startEndByte: [UInt8] = [0, 1, 1, 1, 1, 1, 1, 0] // 0x7E
 let aisPreambleAlt = Array(aisPreamble[2..<24])
 let preambleAndStart = aisPreamble + startEndByte
 
+/// AIS-specific tool for finding the coarse & finer start of an AIS transmission.
 class PacketSynchronizer {
     var sampleRate: Int
     var samplesPerSymbol: Int {

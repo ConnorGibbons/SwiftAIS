@@ -18,6 +18,15 @@
           "revision": "e9da1d0d13b28ce83d8a53fa42857ae6152ec17d",
           "version": "1.0.1"
         }
+      },
+      {
+        "package": "TCPUtils",
+        "repositoryURL": "https://github.com/ConnorGibbons/TCPUtils",
+        "state": {
+          "branch": null,
+          "revision": "8cd10bee9b0854838f77b353fd715c52d11af65d",
+          "version": "1.0.2"
+        }
       }
     ]
   },
