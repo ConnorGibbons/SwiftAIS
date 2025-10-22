@@ -67,6 +67,7 @@ On an M2 Macbook Air, the times are 709.678333 and 349.079542 ms respectively.
 | `-tcp [Int]` | Makes SwiftAIS act as a TCP server, broadcasting NMEA 0183 packets. Enter port (1-65535). Example: `-tcp 50100` |
 | `-ec [Int]` | Enables error correction up to a defined number of bits. Max allowed is 3. This is experimental, it can cause false corrections. |
 | `-s [File Path]` | Saves NMEA 0183 output text to a specified file. |
+| `-rs [Port]` | Rebroadcasts rtl_tcp data via this port allowing for visualization in an SDR frontend (SDR++, GQRX, etc.) |
 
 ## Offline Decoding
 SwiftAIS can take in .wav files for decoding offline. This allows for use with old captures & without an SDR. Use the `-ot` argument, with subsequent arguments as follows:

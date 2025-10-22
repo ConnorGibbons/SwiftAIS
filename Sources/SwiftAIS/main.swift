@@ -31,7 +31,8 @@ class RuntimeState {
     var maxBitFlips: Int = 0
     
     // State
-    var outputServer: TCPServer?
+    var outputServer: TCPServer?        // Outputs NMEA to listeners
+    var relayServer: RTLTCPRelayServer? // Retransmits rtl_tcp stream (read-only) so visualizers can be used.
     var outputFile: FileHandle?
     var validSentences: [AISSentence] = []
     var invalidSentences: [AISSentence] = []
@@ -56,6 +57,7 @@ enum LaunchArgument: String {
     case errorCorrection = "-ec"
     case saveFile = "-s"
     case help = "-h"
+    case relayServer = "-rs"
 }
 
 func showHelp() {
@@ -251,6 +253,14 @@ func mapCLIArgsToVariables() -> RuntimeState {
                 exit(64)
             }
             
+        case .relayServer:
+            currArgIndex += 1
+            if let port = UInt16(nextArgument ?? "failPlaceholder") { runtimeState.relayServer = RTLTCPRelayServer(port: port) }
+            else {
+                print("Invalid or no port provided to relay server. Allowed values are 1-65535.")
+                exit(64)
+            }
+        
         default:
             print("Unrecognized argument: \(String(describing: argument))")
             exit(64)
@@ -281,7 +291,10 @@ func main(state: RuntimeState) throws {
     
     let sdr: RTLSDR = try {
         if state.sdrHost != nil && state.sdrPort != nil {
-            return try RTLSDR_TCP(host: state.sdrHost!, port: state.sdrPort!)
+            let sdr = try RTLSDR_TCP(host: state.sdrHost!, port: state.sdrPort!)
+            state.relayServer?.associateSDR(sdr: sdr)
+            try state.relayServer?.start()
+            return sdr
         }
         return try RTLSDR_USB(deviceIndex: state.sdrDeviceIndex)
     }()

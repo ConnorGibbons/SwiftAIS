@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/ConnorGibbons/RTLSDRWrapper",
         "state": {
           "branch": null,
-          "revision": "83351c3bacd030da475f95f3225e52eb7a4cf864",
-          "version": "1.0.1"
+          "revision": "9dd86782273d5a8dcd48afb7cc41c85a897b6d7a",
+          "version": null
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/ConnorGibbons/TCPUtils",
         "state": {
           "branch": null,
-          "revision": "8cd10bee9b0854838f77b353fd715c52d11af65d",
-          "version": "1.0.2"
+          "revision": "81b6fbdc3c2fc2d9653e47045bf56d3a4c6903ce",
+          "version": "1.0.3"
         }
       }
     ]
