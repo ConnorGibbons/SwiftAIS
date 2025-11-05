@@ -322,6 +322,12 @@ func main(state: RuntimeState) throws {
         var timer = TimeOperation(operationName: "handleInput")
         inputBuffer.append(contentsOf: inputData)
         if(inputBuffer.count >= MIN_BUFFER_LEN) {
+            if let relayServer = state.relayServer {
+                let transportReadyBytes = inputBuffer.mapForTransportFormat().withUnsafeBytes {
+                    return Data($0)
+                }
+                relayServer.handleSDRData(data: transportReadyBytes)
+            }
             inputDataToReceivers(inputBuffer, receiverA: channelAReceiver, receiverB: channelBReceiver, state: state)
             inputBuffer = []
         }

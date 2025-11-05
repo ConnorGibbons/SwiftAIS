@@ -225,3 +225,21 @@ func DSPComplexBufferMagnitude(_ buffer: UnsafeBufferPointer<DSPComplex>) -> [Fl
     vDSP_zvabs(&splitComplexBuffer, vDSP_Stride(1), &result, vDSP_Stride(1), vDSP_Length(buffer.count))
     return result
 }
+
+/// This is needed for relaying data to SDR frontends. They expect the data to be in interleaved 8-bit integer format.
+struct ComplexInterleavedTransportFormat {
+    let real: UInt8
+    let imag: UInt8
+    
+    init(complex: DSPComplex) {
+        real = UInt8((complex.real + 1) * 127.5)
+        imag = UInt8((complex.imag + 1) * 127.5)
+    }
+}
+
+extension [DSPComplex] {
+    func mapForTransportFormat() -> [ComplexInterleavedTransportFormat] {
+        return self.map(ComplexInterleavedTransportFormat.init)
+    }
+}
+
