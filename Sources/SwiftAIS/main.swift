@@ -15,6 +15,7 @@ import TCPUtils
 
 // Constants
 let MIN_BUFFER_LEN = 16000
+let readQueue = DispatchQueue(label: "SwiftAIS.readQueue")
 
 class RuntimeState {
     // Args
@@ -312,29 +313,31 @@ func main(state: RuntimeState) throws {
     
     var inputBuffer: [DSPComplex] = []
     
-    sdr.asyncReadSamples(callback: { (inputData) in
-        guard inputData.count > 16 else {
-            if(state.debugConfig.debugOutput) {
-                print("inputData too short, skipping")
-            }
-            return
-        }
-        var timer = TimeOperation(operationName: "handleInput")
-        inputBuffer.append(contentsOf: inputData)
-        if(inputBuffer.count >= MIN_BUFFER_LEN) {
-            if let relayServer = state.relayServer {
-                let transportReadyBytes = inputBuffer.mapForTransportFormat().withUnsafeBytes {
-                    return Data($0)
+    readQueue.async {
+        sdr.asyncReadSamples(callback: { (inputData) in
+            guard inputData.count > 16 else {
+                if(state.debugConfig.debugOutput) {
+                    print("inputData too short, skipping")
                 }
-                relayServer.handleSDRData(data: transportReadyBytes)
+                return
             }
-            inputDataToReceivers(inputBuffer, receiverA: channelAReceiver, receiverB: channelBReceiver, state: state)
-            inputBuffer = []
-        }
-        if(state.debugConfig.debugOutput) {
-            print(timer.stop() + "(\(inputData.count) samples)")
-        }
-    })
+            var timer = TimeOperation(operationName: "handleInput")
+            inputBuffer.append(contentsOf: inputData)
+            if(inputBuffer.count >= MIN_BUFFER_LEN) {
+                if let relayServer = state.relayServer {
+                    let transportReadyBytes = inputBuffer.mapForTransportFormat().withUnsafeBytes {
+                        return Data($0)
+                    }
+                    relayServer.handleSDRData(data: transportReadyBytes)
+                }
+                inputDataToReceivers(inputBuffer, receiverA: channelAReceiver, receiverB: channelBReceiver, state: state)
+                inputBuffer = []
+            }
+            if(state.debugConfig.debugOutput) {
+                print(timer.stop() + "(\(inputData.count) samples)")
+            }
+        })
+    }
     
     registerSignalHandler()
     atexit_b { // Like 'atexit' but allows for capturing context. who knew?
