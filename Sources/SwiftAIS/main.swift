@@ -7,7 +7,7 @@
 
 import Foundation
 import Accelerate
-import RTLSDRWrapper
+import SoapySDRWrapper
 import SignalTools
 import Network
 import Darwin
@@ -15,7 +15,6 @@ import TCPUtils
 
 // Constants
 let MIN_BUFFER_LEN = 16000
-let readQueue = DispatchQueue(label: "SwiftAIS.readQueue")
 
 class RuntimeState {
     // Args
@@ -29,6 +28,7 @@ class RuntimeState {
     var sdrDeviceIndex: Int = 0
     var sdrHost: String? = nil
     var sdrPort: UInt16? = nil
+    var deviceString: String? = nil
     var maxBitFlips: Int = 0
     
     // State
@@ -59,10 +59,12 @@ enum LaunchArgument: String {
     case saveFile = "-s"
     case help = "-h"
     case relayServer = "-rs"
+    case listDevices = "-ls"
+    case deviceString = "-ds"
 }
 
 func showHelp() {
-    print("SwiftAIS - AIS Demodulator")
+    print("SwiftAIS - AIS Receiver")
     print("Usage: SwiftAIS [options]")
     print("")
     print("Options:")
@@ -71,16 +73,18 @@ func showHelp() {
     print("  -ot <file path, center frequency, sample rate> Perform offline decoding test using specified file as input, must be 16-bit WAV where IQ samples are interleaved")
     print("  -n              Print valid NMEA sentences to console")
     print("  -agc            Enable digital AGC")
-    print("  -tcp <port>     Start TCP server on specified port (1-65535)")
+    print("  -tcp <port>     Start TCP NMEA output server on specified port (1-65535)")
     print("  -b <bandwidth>  Set tuner bandwidth in Hz (1000-200000)")
     print("  -di <index>     Set SDR device index or host:port for TCP connection")
     print("  -ec <bits>      Enable error correction (0-3 bit flips) -- NOTE: Anything above 0 (<=2 is recommended) can cause false positive 'corrections'. Use with caution!")
     print("  -s <file path>  Save decoded sentences to file")
+    print("  -ls             List available SoapySDR devices.")
+    print("  -ds <string>    Use a custom SoapySDR device string.")
     print("")
     print("Examples:")
     print("  SwiftAIS -d ./debugOutput -n   Run with debug output and console printing")
-    print("  SwiftAIS -tcp 50050            Start TCP server on port 50050")
-    print("  SwiftAIS -di 192.168.1.1:1234  Connect to remote SDR via TCP")
+    print("  SwiftAIS -tcp 50050            Start TCP NMEA output server on port 50050")
+    print("  SwiftAIS -di 0                 Use to the device at index 0 from SoapySDRUtil --list or the -ls option.")
 }
 
 func mapCLIArgsToVariables() -> RuntimeState {
@@ -261,6 +265,25 @@ func mapCLIArgsToVariables() -> RuntimeState {
                 print("Invalid or no port provided to relay server. Allowed values are 1-65535.")
                 exit(64)
             }
+            
+        case .listDevices:
+            let devices = SoapyProbe.listDevices()
+            var i = 0
+            print("\n\n--- Device List ---\n\n")
+            for device in devices {
+                print(" -- Device \(i) --\n" + device.description)
+                i += 1
+            }
+            exitWithReason("Pick a device from the above list and use its index with the -di argument to begin.", code: 0)
+            
+        case .deviceString:
+            currArgIndex += 1
+            if let deviceString = nextArgument { runtimeState.deviceString = deviceString }
+            else {
+                exitWithReason("-ds must be accompanied with a SoapySDR device string (e.g \"driver=remote,remote=tcp:192.168.1.1:55132\")", code: 64)
+            }
+            
+        
         
         default:
             print("Unrecognized argument: \(String(describing: argument))")
@@ -280,6 +303,8 @@ catch {
 }
 
 func main(state: RuntimeState) throws {
+    _ = SoapyProbe.listDevices() // Needed to populate device cache prior to possibly initializing w/ an index
+    var setupComplete = false  // 02/04/26 - Added to prevent program from aborting because sdr.isActive is false prior to setup completing
     if state.offlineSamples != nil {
         try offlineTesting(state: state)
         exit(0)
@@ -290,54 +315,69 @@ func main(state: RuntimeState) throws {
         state.outputServer?.startServer()
     }
     
-    let sdr: RTLSDR = try {
-        if state.sdrHost != nil && state.sdrPort != nil {
-            let sdr = try RTLSDR_TCP(host: state.sdrHost!, port: state.sdrPort!)
-            state.relayServer?.associateSDR(sdr: sdr)
-            try state.relayServer?.start()
-            return sdr
+    var sdr: SoapyDevice
+    if(state.deviceString != nil) {
+        do {
+            try sdr = SoapyDevice(stringArgs: state.deviceString!)
         }
-        return try RTLSDR_USB(deviceIndex: state.sdrDeviceIndex)
-    }()
-    
-    defer {
-        sdr.stopAsyncRead()
+        catch {
+            exitWithReason("Failed to open SDR with the given device string: \(state.deviceString!)")
+        }
+    }
+    else if(state.sdrHost != nil && state.sdrPort != nil) {
+        var kwargs = SoapyKwargs()
+        kwargs.dict["driver"] = "remote"
+        kwargs.dict["remote"] = "tcp://\(state.sdrHost!):\(state.sdrPort!)"
+        do {
+            try sdr = SoapyDevice(stringArgs: kwargs.dictAsString)
+        }
+        catch {
+            exitWithReason("Failed to open SDR with given IP and port (\(state.sdrHost!):\(state.sdrPort!)) \n kwargs: \(kwargs.dictAsString)")
+        }
+    }
+    else {
+        do {
+            try sdr = SoapyDevice(int: state.sdrDeviceIndex)
+        }
+        catch {
+            exitWithReason("Failed to open SDR at given index (\(state.sdrDeviceIndex)")
+        }
     }
     
-    try sdr.setCenterFrequency(AIS_CENTER_FREQUENCY)
-    try sdr.setDigitalAGCEnabled(state.useDigitalAGC)
-    try sdr.setSampleRate(DEFAULT_SAMPLE_RATE)
-    try? sdr.setTunerBandwidth(state.bandwidth) // This won't work on RTLSDR_TCP because it's not implemented yet
+    try sdr.setFrequency(direction: .rx, channel: 0, frequency: Double(AIS_CENTER_FREQUENCY))
+    try sdr.setGainMode(direction: .rx, channel: 0, automatic: state.useDigitalAGC)
+    try sdr.setSampleRate(direction: .rx, channel: 0, rate: Double(DEFAULT_SAMPLE_RATE))
+    try sdr.setBandwidth(direction: .rx, channel: 0, bw: Double(state.bandwidth))
     let channelAReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, errorCorrectBits: state.maxBitFlips, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
     let channelBReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, errorCorrectBits: state.maxBitFlips, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
     
     var inputBuffer: [DSPComplex] = []
     
-    readQueue.async {
-        sdr.asyncReadSamples(callback: { (inputData) in
-            guard inputData.count > 16 else {
-                if(state.debugConfig.debugOutput) {
-                    print("inputData too short, skipping")
-                }
-                return
-            }
-            var timer = TimeOperation(operationName: "handleInput")
-            inputBuffer.append(contentsOf: inputData)
-            if(inputBuffer.count >= MIN_BUFFER_LEN) {
-                if let relayServer = state.relayServer {
-                    let transportReadyBytes = inputBuffer.mapForTransportFormat().withUnsafeBytes {
-                        return Data($0)
-                    }
-                    relayServer.handleSDRData(data: transportReadyBytes)
-                }
-                inputDataToReceivers(inputBuffer, receiverA: channelAReceiver, receiverB: channelBReceiver, state: state)
-                inputBuffer = []
-            }
+    let streamID = try sdr.asyncReadSamples(channels: [0], callback: { (sampleData: [[ComplexSample]]) in
+        setupComplete = true
+        let inputData: [DSPComplex] = sampleData[0].map { DSPComplex(sample: $0) }
+        guard inputData.count > 16 else {
             if(state.debugConfig.debugOutput) {
-                print(timer.stop() + "(\(inputData.count) samples)")
+                print("inputData too short, skipping")
             }
-        })
-    }
+            return
+        }
+        var timer = TimeOperation(operationName: "handleInput")
+        inputBuffer.append(contentsOf: inputData)
+        if(inputBuffer.count >= MIN_BUFFER_LEN) {
+            if let relayServer = state.relayServer {
+                let transportReadyBytes = inputBuffer.mapForTransportFormat().withUnsafeBytes {
+                    return Data($0)
+                }
+                relayServer.handleSDRData(data: transportReadyBytes)
+            }
+            inputDataToReceivers(inputBuffer, receiverA: channelAReceiver, receiverB: channelBReceiver, state: state)
+            inputBuffer = []
+        }
+        if(state.debugConfig.debugOutput) {
+            print(timer.stop() + "(\(inputData.count) samples)")
+        }
+    }); defer { sdr.asyncStopReadingSamples(id: streamID) }
     
     registerSignalHandler()
     atexit_b { // Like 'atexit' but allows for capturing context. who knew?
@@ -348,7 +388,7 @@ func main(state: RuntimeState) throws {
     
     let mainThreadBlockingSemaphore = DispatchSemaphore(value: 0)
     let checkStopConditionsLoop = AsyncTimedLoop() {
-        if !sdr.isActive {
+        if !sdr.isActive && setupComplete {
             mainThreadBlockingSemaphore.signal()
         }
     }
@@ -405,4 +445,9 @@ func registerSignalHandler() {
     signal(SIGINT) { _ in
         exit(0)
     }
+}
+
+func exitWithReason(_ reason: String, code: Int32 = 1) -> Never {
+    print(reason)
+    exit(code)
 }

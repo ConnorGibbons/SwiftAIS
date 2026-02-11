@@ -10,7 +10,6 @@ import SignalTools
 import Accelerate
 import Network
 @testable import SwiftAIS
-import RTLSDRWrapper
 
 let ONE_SECOND_IN_NANOSECONDS: UInt64 = 1_000_000_000
 
@@ -103,10 +102,10 @@ final class SwiftAISTests: XCTestCase {
         
         for i in 0...maxBitFlipCount {
             let errorIndicies = (0..<20).shuffled().prefix(i).map{ certaintyMap[$0].1 }
-            var timer = TimeOperation(operationName: "Correcting \(i) bit errors")
+//            var timer = TimeOperation(operationName: "Correcting \(i) bit errors")
             let erroredPayload = nrziFlipBits(bits: correctPayloadBits, positions: errorIndicies)
             let errorCorrectionResult = testValidator.correctErrors(bitsWithoutFlags: erroredPayload, certainties: certaintyMap)
-            print(timer.stop())
+//            print(timer.stop())
             XCTAssertTrue(errorCorrectionResult.3)
             XCTAssertEqual(errorCorrectionResult.2, i)
             XCTAssertEqual(errorCorrectionResult.0, correctPayloadBits)
@@ -145,13 +144,13 @@ final class SwiftAISTests: XCTestCase {
             ringBuff_1.write(DSPComplex(real: Float.random(in: -1..<1), imag: Float.random(in: -1..<1)))
         }
         
-        var startTime_old = TimeOperation(operationName: "Old Magnitude Calc (\(BUFFER_SIZE))")
+//        var startTime_old = TimeOperation(operationName: "Old Magnitude Calc (\(BUFFER_SIZE))")
         let oldMag = ringBuff_0.magnitude_OLD()
-        print(startTime_old.stop())
+//        print(startTime_old.stop())
         
-        var startTime_new = TimeOperation(operationName: "New Magnitude Calc (\(BUFFER_SIZE))")
+//        var startTime_new = TimeOperation(operationName: "New Magnitude Calc (\(BUFFER_SIZE))")
         _ = ringBuff_1.magnitude()
-        print(startTime_new.stop())
+//        print(startTime_new.stop())
         
         let magForComparison = ringBuff_0.magnitude()
 

@@ -6,7 +6,6 @@
 //
 import Accelerate
 import Foundation
-import RTLSDRWrapper
 import SignalTools
 
 class SignalProcessor {
