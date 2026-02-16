@@ -64,7 +64,15 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-di 127.0.0.1:1234"
+            argument = "-ds &quot;driver=rtltcp,rtltcp=127.0.0.1:1234&quot;"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-agc"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-rs 55111"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

@@ -315,6 +315,11 @@ func main(state: RuntimeState) throws {
         state.outputServer?.startServer()
     }
     
+    if(state.relayServer != nil) {
+        print("Starting rtl_tcp relay server...")
+        try state.relayServer?.start()
+    }
+    
     var sdr: SoapyDevice
     if(state.deviceString != nil) {
         do {
@@ -345,7 +350,13 @@ func main(state: RuntimeState) throws {
     }
     
     try sdr.setFrequency(direction: .rx, channel: 0, frequency: Double(AIS_CENTER_FREQUENCY))
-    try sdr.setGainMode(direction: .rx, channel: 0, automatic: state.useDigitalAGC)
+    try sdr.writeSetting(key: "direct_samp", value: "0")
+    try sdr.writeSetting(key: "digital_agc", value: "true")
+    try sdr.writeSetting(key: "offset_tune", value: "false")
+    try sdr.writeSetting(key: "iq_swap", value: "false")
+    try sdr.writeSetting(key: "biastee", value: "false")
+    try sdr.setGainMode(direction: .rx, channel: 0, automatic: true)
+    try sdr.setGainMode(direction: .rx, channel: 0, automatic: true) // SoapyRTLTCP bug, has to be done twice
     try sdr.setSampleRate(direction: .rx, channel: 0, rate: Double(DEFAULT_SAMPLE_RATE))
     try sdr.setBandwidth(direction: .rx, channel: 0, bw: Double(state.bandwidth))
     let channelAReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, errorCorrectBits: state.maxBitFlips, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
@@ -356,21 +367,22 @@ func main(state: RuntimeState) throws {
     let streamID = try sdr.asyncReadSamples(channels: [0], callback: { (sampleData: [[ComplexSample]]) in
         setupComplete = true
         let inputData: [DSPComplex] = sampleData[0].map { DSPComplex(sample: $0) }
+        // print(inputData[0..<50])
         guard inputData.count > 16 else {
             if(state.debugConfig.debugOutput) {
                 print("inputData too short, skipping")
             }
             return
         }
+        if let relayServer = state.relayServer {
+            let transportReadyBytes = inputData.mapForTransportFormat().withUnsafeBytes {
+                return Data($0)
+            }
+            relayServer.handleSDRData(data: transportReadyBytes)
+        }
         var timer = TimeOperation(operationName: "handleInput")
         inputBuffer.append(contentsOf: inputData)
         if(inputBuffer.count >= MIN_BUFFER_LEN) {
-            if let relayServer = state.relayServer {
-                let transportReadyBytes = inputBuffer.mapForTransportFormat().withUnsafeBytes {
-                    return Data($0)
-                }
-                relayServer.handleSDRData(data: transportReadyBytes)
-            }
             inputDataToReceivers(inputBuffer, receiverA: channelAReceiver, receiverB: channelBReceiver, state: state)
             inputBuffer = []
         }
