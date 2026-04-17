@@ -10,7 +10,7 @@ let package = Package(
         .macOS(.v10_15),
     ],
     dependencies: [
-        .package(url: "https://github.com/ConnorGibbons/SignalTools", from: "1.1.3"),
+        .package(url: "https://github.com/ConnorGibbons/SignalTools", branch: "main"),
         .package(url: "https://github.com/ConnorGibbons/TCPUtils", from: "1.0.4"),
         .package(url: "https://github.com/ConnorGibbons/SoapySDRWrapper", branch: "main")
     ],

@@ -4,7 +4,7 @@
 //
 //  Created by Connor Gibbons  on 6/6/25.
 //
-import Accelerate
+
 import SignalTools
 
 enum AISErrors: Error {
@@ -29,7 +29,7 @@ struct AISSentence: CustomStringConvertible {
     
     var description: String {
         if let seqID = self.sequentialID {
-            let sentenceCount = Int(ceil((Float(payloadASCII.count) / (82.0 - 20.0))))
+            let sentenceCount = Int((Float(payloadASCII.count) / (82.0 - 20.0)).rounded(.up))
             var allSentences: String = ""
             var currentSentenceNum = 1
             var startIndex = payloadASCII.startIndex
@@ -128,7 +128,7 @@ class AISReceiver {
     
     // Sample Processing
     
-    func processSamples(_ samples: [DSPComplex]) -> [AISSentence] {
+    func processSamples(_ samples: [ComplexSample]) -> [AISSentence] {
         var samplesMutableCopy = samples
         let filteredResampledSignal = preprocessor.processAISSignal(&samplesMutableCopy)
         
@@ -155,7 +155,7 @@ class AISReceiver {
         return sentences
     }
     
-    func analyzeSamples(_ samples: [DSPComplex], sampleRate: Int) throws -> AISSentence? {
+    func analyzeSamples(_ samples: [ComplexSample], sampleRate: Int) throws -> AISSentence? {
         guard sampleRate % 9600 == 0 else { throw AISErrors.sampleRateMismatch }
         let samplesPerSymbol = sampleRate / 9600
         var filteredIQ = samples
@@ -250,8 +250,8 @@ class AISReceiver {
         }
     }
     
-    private func getHighEnergyTimes(_ signal: [DSPComplex]) -> [(Double, Double)] {
-        var samplesToProcess: [[DSPComplex]] = []
+    private func getHighEnergyTimes(_ signal: [ComplexSample]) -> [(Double, Double)] {
+        var samplesToProcess: [[ComplexSample]] = []
         if(signal.count > energyDetector.bufferSize) {
             samplesToProcess = splitArray(signal, sectionSize: energyDetector.bufferSize)
         }

@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Accelerate
 import SignalTools
 
 /// Takes in RunTime state and uses stored offline variables as input if present.
@@ -18,8 +17,8 @@ func offlineTesting(state: RuntimeState) throws {
     }
     
 //    var timer = TimeOperation(operationName: "Preparing data")
-    var channelABuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: samples.count)
-    var channelBBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: samples.count)
+    var channelABuffer: [ComplexSample] = .init(repeating: ComplexSample(real: 0, imag: 0), count: samples.count)
+    var channelBBuffer: [ComplexSample] = .init(repeating: ComplexSample(real: 0, imag: 0), count: samples.count)
     shiftFrequencyToBasebandHighPrecision(rawIQ: samples, result: &channelABuffer, frequency: Float(AIS_CHANNEL_A - centerFrequency), sampleRate: sampleRate)
     shiftFrequencyToBasebandHighPrecision(rawIQ: samples, result: &channelBBuffer, frequency: Float(AIS_CHANNEL_B - centerFrequency), sampleRate: sampleRate)
 //    print(timer.stop())

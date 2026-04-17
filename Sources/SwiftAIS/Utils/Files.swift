@@ -7,10 +7,10 @@
 //  Tools for working with IQ recordings.
 
 import Foundation
-import Accelerate
+import SignalTools
 
 struct DemodulationDebugStats: Encodable {
-    let samples: [DSPComplex]
+    let samples: [ComplexSample]
     let sentence: String
     let coarseStartingSampleIndex: Int
     let preciseStartingSampleIndex: Int

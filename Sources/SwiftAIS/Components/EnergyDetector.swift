@@ -4,12 +4,12 @@
 //
 //  Created by Connor Gibbons  on 6/6/25.
 //
-import Accelerate
+
 import SignalTools
 
 class EnergyDetector {
     let sampleRate: Int
-    var buffer: RingBuffer<DSPComplex>
+    var buffer: RingBuffer<ComplexSample>
     var bufferSize: Int {
         return buffer.count
     }
@@ -19,17 +19,17 @@ class EnergyDetector {
     
     init(sampleRate: Int, bufferDuration: Double?, windowSize: Int?, debugOutput: Bool = false) {
         if bufferDuration == nil {
-            self.buffer = RingBuffer<DSPComplex>.init(defaultVal: .init(real: 0, imag: 0), size: sampleRate / 2) // 500ms default
+            self.buffer = RingBuffer<ComplexSample>.init(defaultVal: .init(real: 0, imag: 0), size: sampleRate / 2) // 500ms default
         }
         else {
-            self.buffer = RingBuffer<DSPComplex>.init(defaultVal: .init(real: 0, imag: 0), size: Int(Double(sampleRate) * bufferDuration!))
+            self.buffer = RingBuffer<ComplexSample>.init(defaultVal: .init(real: 0, imag: 0), size: Int(Double(sampleRate) * bufferDuration!))
         }
         self.sampleRate = sampleRate
         self.windowSize = windowSize ?? sampleRate / 300
         self.debugOutput = debugOutput
     }
     
-    func addSamples(_ samples: [DSPComplex]) -> [Int] {
+    func addSamples(_ samples: [ComplexSample]) -> [Int] {
         if samples.count > bufferSize {
             debugPrint("Input array cannot be greater than buffer size -- input: \(samples.count), size: \(bufferSize)")
             return []

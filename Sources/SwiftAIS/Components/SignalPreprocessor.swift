@@ -5,7 +5,6 @@
 //  Created by Connor Gibbons  on 6/16/25.
 //
 
-import Accelerate
 import Foundation
 import SignalTools
 
@@ -34,7 +33,7 @@ class SignalPreprocessor {
     }
     
     // Note that while this returns a new array, it does modify the original!
-    func processAISSignal(_ signal: inout [DSPComplex]) -> [DSPComplex] {
+    func processAISSignal(_ signal: inout [ComplexSample]) -> [ComplexSample] {
         filterSignal(&signal)
         let resampled = resampleSignal(signal)
         if(debugOutput){
@@ -43,13 +42,13 @@ class SignalPreprocessor {
         return resampled
     }
     
-    func filterSignal(_ signal: inout [DSPComplex]) {
+    func filterSignal(_ signal: inout [ComplexSample]) {
         for filt in filters {
             filt.filteredSignal(&signal)
         }
     }
     
-    func resampleSignal(_ signal: [DSPComplex]) -> [DSPComplex] {
+    func resampleSignal(_ signal: [ComplexSample]) -> [ComplexSample] {
         let antiAliasingFilter = try! FIRFilter(type: .lowPass, cutoffFrequency: Double(outputSampleRate / 2), sampleRate: inputSampleRate, tapsLength: 15)
         let resampled = downsampleComplex(iqData: signal, decimationFactor: inputSampleRate / outputSampleRate, filter: antiAliasingFilter.getTaps())
         return resampled

@@ -68,10 +68,6 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-agc"
-            isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
             argument = "-rs 55111"
             isEnabled = "YES">
          </CommandLineArgument>

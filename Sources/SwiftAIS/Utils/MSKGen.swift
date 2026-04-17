@@ -5,7 +5,7 @@
 //  Created by Connor Gibbons  on 6/9/25.
 //
 import Foundation
-import Accelerate
+import SignalTools
 
 func nrziEncode(_ bits: [UInt8], initialLevel: UInt8 = 1) -> [UInt8] {
     var output: [UInt8] = []
@@ -20,10 +20,10 @@ func nrziEncode(_ bits: [UInt8], initialLevel: UInt8 = 1) -> [UInt8] {
     return output
 }
 
-func generateSignal(bits: [UInt8], sampleRate: Int, baud: Int, initialNrziLevel: UInt8 = 1) -> ([DSPComplex], [Float]) {
+func generateSignal(bits: [UInt8], sampleRate: Int, baud: Int, initialNrziLevel: UInt8 = 1) -> ([ComplexSample], [Float]) {
     let nrziBits = nrziEncode(bits, initialLevel: initialNrziLevel)
     var phase: Float = 0.0
-    var iqSamples: [DSPComplex] = []
+    var iqSamples: [ComplexSample] = []
     var phaseSamples: [Float] = []
 
     let samplesPerSymbol = sampleRate / baud
@@ -35,7 +35,7 @@ func generateSignal(bits: [UInt8], sampleRate: Int, baud: Int, initialNrziLevel:
             phase += perSamplePhaseChange * direction
             let i = cos(phase)
             let q = sin(phase)
-            iqSamples.append(DSPComplex(real: i, imag: q))
+            iqSamples.append(ComplexSample(real: i, imag: q))
             phaseSamples.append(phase)
         }
     }

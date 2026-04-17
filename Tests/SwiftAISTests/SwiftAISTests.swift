@@ -7,7 +7,6 @@
 import XCTest
 import Foundation
 import SignalTools
-import Accelerate
 import Network
 @testable import SwiftAIS
 

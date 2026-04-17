@@ -6,14 +6,14 @@
 //
 //  Useful math functions for working with signals.
 
-import Accelerate
 import SoapySDRWrapper
+import SignalTools
 
 func splitArray<T>(_ array: [T], sectionSize: Int) -> [[T]] {
     guard !array.isEmpty else {
         return []
     }
-    let numSections = Int(ceil(Float(array.count) / Float(sectionSize)))
+    let numSections = Int((Float(array.count) / Float(sectionSize)).rounded(.up))
     var splitSections: [[T]] = .init(repeating: [], count: numSections)
     var index = 0
     while(index < array.count) {
@@ -213,39 +213,19 @@ func nrziFlipBits(bits: [UInt8], positions: [Int]) -> [UInt8] {
     return nrziFlipBits(bits: currBits, positions: Array(positions.dropFirst()))
 }
 
-func DSPComplexBufferMagnitude(_ buffer: UnsafeBufferPointer<DSPComplex>) -> [Float] {
-    let realPointer: UnsafeMutablePointer<Float> = .allocate(capacity: buffer.count)
-    let imagPointer: UnsafeMutablePointer<Float> = .allocate(capacity: buffer.count)
-    var result: [Float] = .init(repeating: 0.0, count: buffer.count)
-    defer {
-        realPointer.deallocate()
-        imagPointer.deallocate()
-    }
-    var splitComplexBuffer: DSPSplitComplex = .init(realp: realPointer, imagp: imagPointer)
-    vDSP_ctoz(buffer.baseAddress!, vDSP_Stride(2), &splitComplexBuffer, vDSP_Stride(1), vDSP_Length(buffer.count))
-    vDSP_zvabs(&splitComplexBuffer, vDSP_Stride(1), &result, vDSP_Stride(1), vDSP_Length(buffer.count))
-    return result
-}
-
 /// This is needed for relaying data to SDR frontends. They expect the data to be in interleaved 8-bit integer format.
 struct ComplexInterleavedTransportFormat {
     let real: UInt8
     let imag: UInt8
     
-    init(complex: DSPComplex) {
+    init(complex: ComplexSample) {
         real = UInt8((complex.real + 1) * 127.5)
         imag = UInt8((complex.imag + 1) * 127.5)
     }
 }
 
-extension [DSPComplex] {
+extension [ComplexSample] {
     func mapForTransportFormat() -> [ComplexInterleavedTransportFormat] {
         return self.map(ComplexInterleavedTransportFormat.init)
-    }
-}
-
-extension DSPComplex {
-    init(sample: ComplexSample) {
-        self.init(real: sample.real, imag: sample.imag)
     }
 }

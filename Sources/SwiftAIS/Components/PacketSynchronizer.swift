@@ -7,8 +7,8 @@
 
 // Determines the coarse & precise starting points of an AIS signal.
 
-import Accelerate
 import Foundation
+import SignalTools
 
 let aisPreamble: [UInt8] = Array(repeating: [0, 1], count: 12).flatMap { $0 }
 let startEndByte: [UInt8] = [0, 1, 1, 1, 1, 1, 1, 0] // 0x7E
@@ -31,8 +31,9 @@ class PacketSynchronizer {
         self.debugOutput = debugOutput
     }
     
-    func getCoarseStartingSample(samples: [DSPComplex], angleOverTime: [Float], frequencyOverTime: [Float]) -> Int {
-        let correlation = vDSP.absolute(vDSP.correlate(frequencyOverTime, withKernel: idealPreambleAndStartImpulse))
+    func getCoarseStartingSample(samples: [ComplexSample], angleOverTime: [Float], frequencyOverTime: [Float]) -> Int {
+        guard let correlatedSignal = slidingCorrelation(signal: frequencyOverTime, template: idealPreambleAndStartImpulse) else { return -1 }
+        let correlation = DSP.absolute(signal: correlatedSignal)
         let maxima = correlation.localMaximaIndicies(order: 1).sorted {
             correlation[$0] > correlation[$1]
         }

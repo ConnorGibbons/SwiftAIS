@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Accelerate
 import SoapySDRWrapper
 import SignalTools
 import Network
@@ -19,7 +18,7 @@ let MIN_BUFFER_LEN = 16000
 class RuntimeState {
     // Args
     var debugConfig: DebugConfiguration = DebugConfiguration(debugOutput: false, saveDirectoryPath: nil)
-    var offlineSamples: [DSPComplex]? = nil
+    var offlineSamples: [ComplexSample]? = nil
     var offlineCenterFrequency: Int? = nil
     var offlineSampleRate: Int? = nil
     var outputValidSentencesToConsole: Bool = false
@@ -361,13 +360,12 @@ func main(state: RuntimeState) throws {
     try sdr.setBandwidth(direction: .rx, channel: 0, bw: Double(state.bandwidth))
     let channelAReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, errorCorrectBits: state.maxBitFlips, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
     let channelBReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, errorCorrectBits: state.maxBitFlips, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
+    setupComplete = true
     
-    var inputBuffer: [DSPComplex] = []
+    var inputBuffer: [ComplexSample] = []
     
-    let streamID = try sdr.asyncReadSamples(channels: [0], callback: { (sampleData: [[ComplexSample]]) in
-        setupComplete = true
-        let inputData: [DSPComplex] = sampleData[0].map { DSPComplex(sample: $0) }
-        // print(inputData[0..<50])
+    let streamID = try sdr.asyncReadSamples(channels: [0], callback: { (sampleData: [[SoapyComplexSample]]) in
+        let inputData: [ComplexSample] = sampleData[0].map { ComplexSample(real: $0.real, imag: $0.imag) }
         guard inputData.count > 16 else {
             if(state.debugConfig.debugOutput) {
                 print("inputData too short, skipping")
@@ -401,6 +399,7 @@ func main(state: RuntimeState) throws {
     let mainThreadBlockingSemaphore = DispatchSemaphore(value: 0)
     let checkStopConditionsLoop = AsyncTimedLoop() {
         if !sdr.isActive && setupComplete {
+            print("SDR no longer active, stopping")
             mainThreadBlockingSemaphore.signal()
         }
     }
@@ -408,9 +407,9 @@ func main(state: RuntimeState) throws {
     mainThreadBlockingSemaphore.wait()
 }
 
-func inputDataToReceivers(_ inputData: [DSPComplex], receiverA: AISReceiver, receiverB: AISReceiver, state: RuntimeState) {
-    var channelABuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: inputData.count)
-    var channelBBuffer: [DSPComplex] = .init(repeating: DSPComplex(real: 0, imag: 0), count: inputData.count)
+func inputDataToReceivers(_ inputData: [ComplexSample], receiverA: AISReceiver, receiverB: AISReceiver, state: RuntimeState) {
+    var channelABuffer: [ComplexSample] = .init(repeating: ComplexSample(real: 0, imag: 0), count: inputData.count)
+    var channelBBuffer: [ComplexSample] = .init(repeating: ComplexSample(real: 0, imag: 0), count: inputData.count)
     shiftFrequencyToBasebandHighPrecision(rawIQ: inputData, result: &channelABuffer, frequency: Float(CHANNEL_A_OFFSET), sampleRate: DEFAULT_SAMPLE_RATE)
     shiftFrequencyToBasebandHighPrecision(rawIQ: inputData, result: &channelBBuffer, frequency: Float(CHANNEL_B_OFFSET), sampleRate: DEFAULT_SAMPLE_RATE)
     let channelASentences = receiverA.processSamples(channelABuffer)
@@ -435,13 +434,6 @@ func handleSentence(_ sentence: AISSentence, state: RuntimeState) {
     if let outputFile = state.outputFile {
         writeSentenceToFile(sentence, file: outputFile)
     }
-    
-//    if(sentence.errorCorrectedBitsCount != 0) {
-//        print("corrected \(sentence.errorCorrectedBitsCount) bits")
-//        print("checksum: \(sentence.checksumAsHex())")
-//        state.bitErrorsCorrected += sentence.errorCorrectedBitsCount
-//    }
-    
     if let server = state.outputServer {
         do {
             try server.broadcastMessage(sentence.description)

@@ -4,7 +4,7 @@
 //
 //  Created by Connor Gibbons  on 6/17/25.
 //
-import Accelerate
+
 import Foundation
 import SignalTools
 
@@ -38,13 +38,13 @@ class SignalProcessor {
         self.debugOutput = debugOutput
     }
     
-    func filterRawSignal(_ signal: inout [DSPComplex]) {
+    func filterRawSignal(_ signal: inout [ComplexSample]) {
         for filter in rawFilters {
             filter.filtfilt(&signal)
         }
     }
     
-    func frequencyOverTime(_ signal: [DSPComplex]) -> [Float] {
+    func frequencyOverTime(_ signal: [ComplexSample]) -> [Float] {
         let radianDiffs = demodulateFM(signal)
         var frequencies = radToFrequency(radDiffs: radianDiffs, sampleRate: self.sampleRate)
         for filter in impulseFilters {
@@ -53,7 +53,7 @@ class SignalProcessor {
         return frequencies
     }
     
-    func angleOverTime(_ signal: [DSPComplex]) -> [Float] {
+    func angleOverTime(_ signal: [ComplexSample]) -> [Float] {
         var angles = [Float].init(repeating: 0, count: signal.count)
         calculateAngle(rawIQ: signal, result: &angles)
         unwrapAngle(&angles)
@@ -89,8 +89,8 @@ class SignalProcessor {
         }
     }
     
-    func correctFrequencyError(signal: [DSPComplex], error: Float) -> [DSPComplex] {
-        var correctedSignal: [DSPComplex] = .init(repeating: DSPComplex(real: 0.0, imag: 0.0), count: signal.count)
+    func correctFrequencyError(signal: [ComplexSample], error: Float) -> [ComplexSample] {
+        var correctedSignal: [ComplexSample] = .init(repeating: ComplexSample(real: 0.0, imag: 0.0), count: signal.count)
         shiftFrequencyToBaseband(rawIQ: signal, result: &correctedSignal, frequency: error, sampleRate: self.sampleRate)
         self.filterRawSignal(&correctedSignal)
         return correctedSignal
