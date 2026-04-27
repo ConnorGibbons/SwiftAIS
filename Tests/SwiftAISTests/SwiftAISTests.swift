@@ -40,7 +40,7 @@ final class SwiftAISTests: XCTestCase {
                 return
             }
             let sentence1IQData = try readIQFromWAV16Bit(filePath: sentence1Path)
-            var sentence1Shifted: [DSPComplex] = .init(repeating: DSPComplex(real: 0.0, imag: 0.0), count: sentence1IQData.count)
+            var sentence1Shifted: [ComplexSample] = .init(repeating: ComplexSample(real: 0.0, imag: 0.0), count: sentence1IQData.count)
             shiftFrequencyToBasebandHighPrecision(rawIQ: sentence1IQData, result: &sentence1Shifted, frequency: 33000, sampleRate: 240000)
             let seqIDGenerator = SequentialIDGenerator()
             let testReceiver = try AISReceiver(inputSampleRate: 240000, channel: .B, seqIDGenerator: seqIDGenerator)
@@ -136,11 +136,11 @@ final class SwiftAISTests: XCTestCase {
     
     func testComplexRingBufferMagnitudeSpeed() {
         let BUFFER_SIZE = 1_000_000
-        let ringBuff_0 = RingBuffer<DSPComplex>.init(defaultVal: DSPComplex(real: 0.0, imag: 0.0), size: BUFFER_SIZE)
-        let ringBuff_1 = RingBuffer<DSPComplex>.init(defaultVal: DSPComplex(real: 0.0, imag: 0.0), size: BUFFER_SIZE)
+        let ringBuff_0 = RingBuffer<ComplexSample>.init(defaultVal: ComplexSample(real: 0.0, imag: 0.0), size: BUFFER_SIZE)
+        let ringBuff_1 = RingBuffer<ComplexSample>.init(defaultVal: ComplexSample(real: 0.0, imag: 0.0), size: BUFFER_SIZE)
         for _ in 0..<BUFFER_SIZE {
-            ringBuff_0.write(DSPComplex(real: Float.random(in: -1..<1), imag: Float.random(in: -1..<1)))
-            ringBuff_1.write(DSPComplex(real: Float.random(in: -1..<1), imag: Float.random(in: -1..<1)))
+            ringBuff_0.write(ComplexSample(real: Float.random(in: -1..<1), imag: Float.random(in: -1..<1)))
+            ringBuff_1.write(ComplexSample(real: Float.random(in: -1..<1), imag: Float.random(in: -1..<1)))
         }
         
 //        var startTime_old = TimeOperation(operationName: "Old Magnitude Calc (\(BUFFER_SIZE))")

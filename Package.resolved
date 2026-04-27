@@ -2,6 +2,15 @@
   "object": {
     "pins": [
       {
+        "package": "Networking",
+        "repositoryURL": "https://github.com/ConnorGibbons/Networking",
+        "state": {
+          "branch": "main",
+          "revision": "8326c9ab39a143b86618df53de21e9f125bef54c",
+          "version": null
+        }
+      },
+      {
         "package": "SignalTools",
         "repositoryURL": "https://github.com/ConnorGibbons/SignalTools",
         "state": {
@@ -20,12 +29,39 @@
         }
       },
       {
-        "package": "TCPUtils",
-        "repositoryURL": "https://github.com/ConnorGibbons/TCPUtils",
+        "package": "swift-atomics",
+        "repositoryURL": "https://github.com/apple/swift-atomics.git",
         "state": {
           "branch": null,
-          "revision": "16a935ec3ff20c8d9038a932d84226c9c05f551f",
-          "version": "1.0.4"
+          "revision": "b601256eab081c0f92f059e12818ac1d4f178ff7",
+          "version": "1.3.0"
+        }
+      },
+      {
+        "package": "swift-collections",
+        "repositoryURL": "https://github.com/apple/swift-collections.git",
+        "state": {
+          "branch": null,
+          "revision": "6675bc0ff86e61436e615df6fc5174e043e57924",
+          "version": "1.4.1"
+        }
+      },
+      {
+        "package": "swift-nio",
+        "repositoryURL": "https://github.com/apple/swift-nio.git",
+        "state": {
+          "branch": null,
+          "revision": "cd6710454f25733900e133c6caf5188952763c36",
+          "version": "2.98.0"
+        }
+      },
+      {
+        "package": "swift-system",
+        "repositoryURL": "https://github.com/apple/swift-system.git",
+        "state": {
+          "branch": null,
+          "revision": "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
+          "version": "1.6.4"
         }
       }
     ]

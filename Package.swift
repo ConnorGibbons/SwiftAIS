@@ -11,7 +11,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ConnorGibbons/SignalTools", branch: "main"),
-        .package(url: "https://github.com/ConnorGibbons/TCPUtils", from: "1.0.4"),
+        .package(url: "https://github.com/ConnorGibbons/Networking", branch: "main"),
         .package(url: "https://github.com/ConnorGibbons/SoapySDRWrapper", branch: "main")
     ],
     targets: [
@@ -20,7 +20,7 @@ let package = Package(
             dependencies: [
                 .product(name: "SoapySDRWrapper", package: "SoapySDRWrapper"),
                 .product(name: "SignalTools", package: "SignalTools"),
-                .product(name: "TCPUtils", package: "TCPUtils"),
+                .product(name: "Networking", package: "Networking"),
             ]
         ),
         .testTarget(

@@ -8,9 +8,8 @@
 import Foundation
 import SoapySDRWrapper
 import SignalTools
-import Network
+import Networking
 import Darwin
-import TCPUtils
 
 // Constants
 let MIN_BUFFER_LEN = 16000
@@ -199,8 +198,10 @@ func mapCLIArgsToVariables() -> RuntimeState {
                 }
                 let port = UInt16(serverPort)
                 do {
-                    runtimeState.outputServer = try TCPServer(port: port, actionOnNewConnection: { newConnection in
+                    runtimeState.outputServer = try TCPServer(port: port, maxConnections: 10, actionOnNewConnection: { newConnection in
                         print("New connection to AIS server: \(newConnection.connectionName)")
+                    }, actionOnReceive: { (connection, data) in
+                        // ignores inbound data
                     })
                 }
                 catch {
@@ -310,8 +311,9 @@ func main(state: RuntimeState) throws {
     }
 
     if(state.outputServer != nil) {
-        print("Starting TCP Server for AIS data...")
-        state.outputServer?.startServer()
+        if let port = state.outputServer?.port {
+            print("TCP Server for NMEA output open on port: \(port)")
+        }
     }
     
     if(state.relayServer != nil) {
@@ -435,12 +437,7 @@ func handleSentence(_ sentence: AISSentence, state: RuntimeState) {
         writeSentenceToFile(sentence, file: outputFile)
     }
     if let server = state.outputServer {
-        do {
-            try server.broadcastMessage(sentence.description)
-        }
-        catch {
-            print("Failed to broadcast message: \(error)")
-        }
+        server.broadcastLine(line: sentence.description, delimiter: "\n")
     }
 }
 

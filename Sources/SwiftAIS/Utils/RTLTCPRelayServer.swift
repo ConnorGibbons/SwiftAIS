@@ -4,7 +4,7 @@
 //
 //  Created by Connor Gibbons  on 10/20/25.
 //
-import TCPUtils
+import Networking
 import Foundation
 
 /// **Note: Functionality of this now limited as RTLSDRWrapper has been replaced.**
@@ -25,12 +25,7 @@ class RTLTCPRelayServer {
     
     func handleSDRData(data: Data) {
         guard let server = server else { return }
-        do {
-            try server.broadcastMessage(data)
-        }
-        catch {
-            print("RelayServer: Failed to broadcast data: \(error)")
-        }
+        server.broadcast(data: data)
     }
     
     func handleCommand(data: Data) {
@@ -44,10 +39,13 @@ class RTLTCPRelayServer {
         }
     }
     
+    @Sendable func printNewConnection(connection: TCPConnection) -> Void {
+        print("New relay server connection: \(connection.connectionName)")
+    }
+    
     func start() throws {
         if server != nil { return }
-        self.server = try TCPServer(port: port, maxConnections: 5, actionOnReceive: { name,data in self.handleCommand(data: data) } )
-        server?.startServer()
+        self.server = try TCPServer(port: port, maxConnections: 5, actionOnNewConnection: printNewConnection, actionOnReceive: { name,data in self.handleCommand(data: data)})
     }
     
 }
