@@ -9,10 +9,20 @@ import Foundation
 import SoapySDRWrapper
 import SignalTools
 import Networking
-import Darwin
 
 // Constants
 let MIN_BUFFER_LEN = 16000
+
+// Workaround to make an atexit func that captures context
+private var printStats: (() -> Void)?
+func registerAtExit(body: @escaping () -> Void) {
+    printStats = body
+    atexit {
+        printStats?()
+    }
+}
+
+
 
 class RuntimeState {
     // Args
@@ -392,7 +402,7 @@ func main(state: RuntimeState) throws {
     }); defer { sdr.asyncStopReadingSamples(id: streamID) }
     
     registerSignalHandler()
-    atexit_b { // Like 'atexit' but allows for capturing context. who knew?
+    registerAtExit {
         print("Number of valid sentences received: \(state.validSentences.count)")
         print("Number of invalid sentences received: \(state.invalidSentences.count)")
         print("Number of bit errors corrected: \(state.bitErrorsCorrected)")
