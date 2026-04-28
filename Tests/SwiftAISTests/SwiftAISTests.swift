@@ -7,7 +7,6 @@
 import XCTest
 import Foundation
 import SignalTools
-import Network
 @testable import SwiftAIS
 
 let ONE_SECOND_IN_NANOSECONDS: UInt64 = 1_000_000_000
