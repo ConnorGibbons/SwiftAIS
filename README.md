@@ -18,6 +18,7 @@ And here's the output when decoded on https://ccgibbons.com/ais:
 ## Requirements
 - A machine running macOS or Linux
 - [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/)
+- [SoapySDR](https://github.com/pothosware/SoapySDR) installed. If using RTL-TCP, you will also need [SoapyRTLTCP](https://github.com/pothosware/SoapyRTLTCP).
 - Any SDR supported by SoapySDR (RTL-SDR included!) & an antenna (antennas designed for the VHF range are ideal, but not strictly required)
 - Be located near marine activity (Reception range limited by VHF propagation. Inland users are likely out of range.)
 
