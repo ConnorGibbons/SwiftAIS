@@ -330,46 +330,9 @@ func main(state: RuntimeState) throws {
         print("Starting rtl_tcp relay server...")
         try state.relayServer?.start()
     }
+
+    var sdr = try setupSDR(state: state)
     
-    var sdr: SoapyDevice
-    if(state.deviceString != nil) {
-        do {
-            try sdr = SoapyDevice(stringArgs: state.deviceString!)
-        }
-        catch {
-            exitWithReason("Failed to open SDR with the given device string: \(state.deviceString!)")
-        }
-    }
-    else if(state.sdrHost != nil && state.sdrPort != nil) {
-        var kwargs = SoapyKwargs()
-        kwargs.dict["driver"] = "remote"
-        kwargs.dict["remote"] = "tcp://\(state.sdrHost!):\(state.sdrPort!)"
-        do {
-            try sdr = SoapyDevice(stringArgs: kwargs.dictAsString)
-        }
-        catch {
-            exitWithReason("Failed to open SDR with given IP and port (\(state.sdrHost!):\(state.sdrPort!)) \n kwargs: \(kwargs.dictAsString)")
-        }
-    }
-    else {
-        do {
-            try sdr = SoapyDevice(int: state.sdrDeviceIndex)
-        }
-        catch {
-            exitWithReason("Failed to open SDR at given index (\(state.sdrDeviceIndex)")
-        }
-    }
-    
-    try sdr.setFrequency(direction: .rx, channel: 0, frequency: Double(AIS_CENTER_FREQUENCY))
-    try sdr.writeSetting(key: "direct_samp", value: "0")
-    try sdr.writeSetting(key: "digital_agc", value: "true")
-    try sdr.writeSetting(key: "offset_tune", value: "false")
-    try sdr.writeSetting(key: "iq_swap", value: "false")
-    try sdr.writeSetting(key: "biastee", value: "false")
-    try sdr.setGainMode(direction: .rx, channel: 0, automatic: true)
-    try sdr.setGainMode(direction: .rx, channel: 0, automatic: true) // SoapyRTLTCP bug, has to be done twice
-    try sdr.setSampleRate(direction: .rx, channel: 0, rate: Double(DEFAULT_SAMPLE_RATE))
-    try sdr.setBandwidth(direction: .rx, channel: 0, bw: Double(state.bandwidth))
     let channelAReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .A, errorCorrectBits: state.maxBitFlips, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
     let channelBReceiver = try AISReceiver(inputSampleRate: DEFAULT_SAMPLE_RATE, channel: .B, errorCorrectBits: state.maxBitFlips, seqIDGenerator: state.seqIDGenerator, debugConfig: state.debugConfig)
     setupComplete = true
@@ -417,6 +380,54 @@ func main(state: RuntimeState) throws {
     }
     checkStopConditionsLoop.startTimedLoop(interval: 0.5)
     mainThreadBlockingSemaphore.wait()
+}
+
+func setupSDR(state: RuntimeState) throws -> SoapyDevice {
+    
+    var sdr: SoapyDevice
+    
+    if(state.deviceString != nil) {
+        do {
+            try sdr = SoapyDevice(stringArgs: state.deviceString!)
+        }
+        catch {
+            exitWithReason("Failed to open SDR with the given device string: \(state.deviceString!)")
+        }
+    }
+    else if(state.sdrHost != nil && state.sdrPort != nil) {
+        var kwargs = SoapyKwargs()
+        kwargs.dict["driver"] = "remote"
+        kwargs.dict["remote"] = "tcp://\(state.sdrHost!):\(state.sdrPort!)"
+        do {
+            try sdr = SoapyDevice(stringArgs: kwargs.dictAsString)
+        }
+        catch {
+            exitWithReason("Failed to open SDR with given IP and port (\(state.sdrHost!):\(state.sdrPort!)) \n kwargs: \(kwargs.dictAsString)")
+        }
+    }
+    else {
+        do {
+            try sdr = SoapyDevice(int: state.sdrDeviceIndex)
+        }
+        catch {
+            exitWithReason("Failed to open SDR at given index (\(state.sdrDeviceIndex)")
+        }
+    }
+    
+    try sdr.setFrequency(direction: .rx, channel: 0, frequency: Double(AIS_CENTER_FREQUENCY))
+    
+    // Just making sure these settings are off, since they wouldn't be productive here
+    try sdr.writeSetting(key: "direct_samp", value: "0")
+    try sdr.writeSetting(key: "offset_tune", value: "false")
+    try sdr.writeSetting(key: "iq_swap", value: "false")
+    try sdr.writeSetting(key: "biastee", value: "false")
+    
+    try sdr.writeSetting(key: "digital_agc", value: state.useDigitalAGC ? "true" : "false")
+    try sdr.setGainMode(direction: .rx, channel: 0, automatic: true)
+    try sdr.setSampleRate(direction: .rx, channel: 0, rate: Double(DEFAULT_SAMPLE_RATE))
+    try sdr.setBandwidth(direction: .rx, channel: 0, bw: Double(state.bandwidth))
+    
+    return sdr
 }
 
 func inputDataToReceivers(_ inputData: [ComplexSample], receiverA: AISReceiver, receiverB: AISReceiver, state: RuntimeState) {
