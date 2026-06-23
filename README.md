@@ -1,6 +1,6 @@
 # SwiftAIS
 
-**SwiftAIS** lets you turn your Mac into a mobile AIS receiver using cheap, simple hardware! Utilizing an RTL-SDR, this software will demodulate AIS signals from vessels within range and output them as NMEA 0183 sentences. These sentences can be plugged into AIS decoders to reveal what information a vessel is broadcasting.
+**SwiftAIS** lets you turn your computer into a mobile AIS receiver using cheap, simple hardware! Utilizing any SDR supported by SoapySDR, this software will demodulate AIS signals from vessels within range and output them as NMEA 0183 sentences. These sentences can be plugged into AIS decoders to reveal what information a vessel is broadcasting.
 
 ## Example Output
 
@@ -16,9 +16,9 @@ And here's the output when decoded on https://ccgibbons.com/ais:
 *(This site is a work in progress! Some rarer message types can cause errors when displaying output. If you find one, let me know! connor@ccgibbons.com)*
 
 ## Requirements
-- An ARM-based Mac running macOS 15 or newer *-- CI builds for macOS 13+. However any version <15 (and Intel macs) are untested.*
+- A machine running macOS or Linux
 - [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/)
-- RTL-SDR & an antenna (antennas designed for the VHF range are ideal, but not strictly required)
+- Any SDR supported by SoapySDR (RTL-SDR included!) & an antenna (antennas designed for the VHF range are ideal, but not strictly required)
 - Be located near marine activity (Reception range limited by VHF propagation. Inland users are likely out of range.)
 
 ## Quick Start
@@ -70,10 +70,10 @@ On an M2 Macbook Air, the times are 709.678333 and 349.079542 ms respectively.
 | `-rs [Port]` | Rebroadcasts rtl_tcp data via this port allowing for visualization in an SDR frontend (SDR++, GQRX, etc.) |
 
 ## Offline Decoding
-SwiftAIS can take in .wav files for decoding offline. This allows for use with old captures & without an SDR. Use the `-ot` argument, with subsequent arguments as follows:
+SwiftAIS can take in .wav files for decoding offline. This allows for use with old captures or without an SDR. Use the `-ot` argument, with subsequent arguments as follows:
 
 ### File Path
-A path (absolute or relative) to the .wav file for input. Note that it **must** be in 16-bit interleaved raw IQ format to be processed. Audio recordings from SDR frontends will not work. SDR frontends will refer to this as recording 'baseband' or raw IQ. 
+A path (absolute or relative) to the .wav file for input. Note that it **must** be in 16-bit interleaved raw IQ format to be processed. Audio recordings from SDR frontends will not work. SDR frontends will refer to the proper format as recording 'baseband' or raw IQ. 
 
 ### Center Frequency (Hz)
 The frequency that was tuned to during the recording, in Hz. If recorded with an SDR frontend like SDR++, this should be in the filename. Ex. 'baseband_161665000Hz_16-03-37_31-05-2025.wav'
@@ -87,10 +87,6 @@ The sample rate of the recording. On macOS, you can right click the recording in
 
 
 ## Features
-
-### Older macOS Support (✓/✗)
-Working on supporting older versions back to High Sierra and Intel Macs.
-- **Update:** SwiftAIS builds on macOS 13 via GitHub Actions. In theory should build on macOS 10.15, but I currently do not have a means of testing this. If you are able to test this, or encounter problems, please email me using the contact below.
 
 ### Decoder/Visualizer (✗)
 Future plans include a Swift-based decoder and live ship visualizer for the NMEA output.
