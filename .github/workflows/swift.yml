@@ -1,23 +1,37 @@
 name: Swift
-
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
 jobs:
   build:
-    # macos-15 (ARM) macos-13 (x86).
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, macos-13]
+        os: [macos-15, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install SoapySDR (macOS)
+        if: ${{ runner.os == 'macOS' }}
+        run: brew install soapysdr pkg-config
+
+      - name: Install SoapySDR (Linux)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsoapysdr-dev
+
+      - name: Setup Swift (Linux only)
+        if: ${{ runner.os == 'Linux' }}
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.1"
+
       - name: Build
         run: swift build -v
-      - name: Run tests
-        run: swift test -v
+
+      - name: Test
+        run: swift test
