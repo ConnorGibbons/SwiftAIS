@@ -90,7 +90,7 @@ final class SwiftAISTests: XCTestCase {
     }
     
     func testErrorCorrection() {
-        let maxBitFlipCount = 5
+        let maxBitFlipCount = 3
         let testValidator = PacketValidator(maxBitFlipCount: maxBitFlipCount, debugOutput: true)
         
         // Corresponds to sentence: !AIVDM,1,1,,A,H52d3RPAD<f0AD<d00000000000,2*3C
