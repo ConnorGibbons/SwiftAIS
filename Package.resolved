@@ -15,7 +15,7 @@
         "repositoryURL": "https://github.com/ConnorGibbons/SignalTools",
         "state": {
           "branch": "main",
-          "revision": "e64a41ab1a62b6ce26efc75cb9f7aab697ec3203",
+          "revision": "e4d75c09ce9aa8ec37908602f174e1c61af5393e",
           "version": null
         }
       },
@@ -24,7 +24,7 @@
         "repositoryURL": "https://github.com/ConnorGibbons/SoapySDRWrapper",
         "state": {
           "branch": "main",
-          "revision": "80d32e752284500e40b80212cf0677997af0e32c",
+          "revision": "d578feec046cdbd9137af22c469ed0e27e481d2b",
           "version": null
         }
       },
