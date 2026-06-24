@@ -362,13 +362,16 @@ func main(state: RuntimeState) throws {
         if(state.debugConfig.debugOutput) {
             print(timer.stop() + "(\(inputData.count) samples)")
         }
-    }); defer { sdr.asyncStopReadingSamples(id: streamID) }
+    })
     
     registerSignalHandler()
     registerAtExit {
         print("Number of valid sentences received: \(state.validSentences.count)")
         print("Number of invalid sentences received: \(state.invalidSentences.count)")
         print("Number of bit errors corrected: \(state.bitErrorsCorrected)")
+        if(sdr.isActive) {
+            sdr.asyncStopReadingSamples(id: streamID)
+        }
     }
     
     let mainThreadBlockingSemaphore = DispatchSemaphore(value: 0)
